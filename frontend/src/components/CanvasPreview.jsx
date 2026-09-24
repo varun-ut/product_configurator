@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback, forwardRef, useImperativeHandle, useState, memo } from "react";
-import { useRenderLog, logImageLoad } from "@/hooks/use-render-log";
+import { useRenderLog, logImageLoad, RENDER_DEBUG } from "@/hooks/use-render-log";
+import { saveImageFile } from "@/lib/downloadImageFile";
 
 const CanvasPreview = forwardRef(({ 
   backgroundImage, 
@@ -95,7 +96,7 @@ const CanvasPreview = forwardRef(({
       newTextureRef.current = img;
       const elapsed = Date.now() - loadStartRef.current;
       const remaining = Math.max(0, MIN_LOADING_MS - elapsed);
-      if (remaining > 0) console.log(`%c⏳ [CANVAS] Texture loaded but spinner held for ${remaining}ms more (MIN_LOADING_MS)`, "color:#ffb74d");
+      if (remaining > 0 && RENDER_DEBUG) console.log(`%c⏳ [CANVAS] Texture loaded but spinner held for ${remaining}ms more (MIN_LOADING_MS)`, "color:#ffb74d");
 
       if (remaining > 0) {
         pendingTimerRef.current = setTimeout(() => {
@@ -137,7 +138,7 @@ const CanvasPreview = forwardRef(({
 
   // Render canvas
   const renderCanvas = useCallback(() => {
-    console.log("%c🎨 [CANVAS] renderCanvas()", "color:#ce93d8");
+    if (RENDER_DEBUG) console.log("%c🎨 [CANVAS] renderCanvas()", "color:#ce93d8");
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -350,10 +351,7 @@ const CanvasPreview = forwardRef(({
         try { dataUrl = await addHeader(dataUrl); }
         catch (err) { console.error("[CanvasPreview] header failed:", err); }
       }
-      const link = document.createElement("a");
-      link.download = overrideFilename || `univicoustic-design-${Date.now()}.png`;
-      link.href = dataUrl;
-      link.click();
+      saveImageFile(dataUrl, overrideFilename || `univicoustic-design-${Date.now()}.png`);
     }
   }));
 

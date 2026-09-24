@@ -265,30 +265,31 @@
     z-index: 20;
 }
 
-/* Favorites Modal */
-.favorites-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
+/* Favorites Modal — the saved-configurations list is now styled inline with
+   Tailwind utility classes as slim full-width rows (see Configurator.jsx).
+   The old .favorites-grid / .favorite-card rules were removed when the layout
+   changed from a multi-column card grid to a vertical list. */
+
+/* Download-button spinner — a plain <div> (not an SVG) so Chrome reliably
+   promotes it to its own GPU compositor layer.  A composited transform
+   animation keeps spinning smoothly even while the main thread is blocked by
+   the ~1.5s image encode (toPng/toDataURL), so the loader no longer stutters.
+   `will-change: transform` is the promotion hint; the animation only touches
+   `transform`, which is compositor-eligible. */
+.btn-spinner {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-top-color: #ffffff;
+    will-change: transform;
+    animation: btn-spinner-rotate 0.7s linear infinite;
 }
 
-@media (min-width: 640px) {
-    .favorites-grid {
-        grid-template-columns: repeat(3, 1fr);
-    }
-}
-
-.favorite-card {
-    border-radius: 0.75rem;
-    overflow: hidden;
-    background: hsl(var(--secondary));
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.favorite-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+@keyframes btn-spinner-rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 /* Logo */
@@ -368,22 +369,49 @@
     }
 
     .canvas-area {
+        /* Stack preview vertically with the selection chips BELOW it on
+           mobile — the chips used to be absolute-positioned over the
+           preview, which on a phone-sized viewport meant they covered the
+           thing the user was trying to see.  Switching the canvas-area to
+           flex-direction:column + auto height lets the chip stack sit in
+           normal flow under the preview. */
         flex: 0 0 auto;
         width: 100%;
-        height: 70dvh;
+        height: auto;
         min-height: 70dvh;
+        flex-direction: column;
+        justify-content: flex-start;
     }
 
     /* The FlatEmbossedPreview component renders a wallCanvasRef div with
        inline `display: inline-block` that shrink-wraps to the furniture
-       image.  The image itself has `max-height: calc(100vh - 220px)` set
-       in the component, which on mobile makes the image taller than our
-       70dvh canvas-area, causing it to overflow / get cropped weirdly.
-       Scope the image to fit the mobile viewport so the wrapper shrinks
-       to a sensible size. */
-    [data-testid="wall-canvas"] > img {
+       image.  Without a max-height cap, on mobile the image takes its
+       intrinsic 1:1 ratio at full viewport width, ending up TALLER than
+       the canvas slot and overflowing the rounded card.  Cap it.
+       NOTE: the old selector was `[data-testid="wall-canvas"] > img` but
+       furniture and tpatti are now wrapped in <picture> for WebP delivery,
+       so target the leaf imgs by data-testid instead. */
+    [data-testid="furniture-layer"],
+    [data-testid="tpatti-layer"] {
         max-height: calc(70dvh - 24px) !important;
         max-width: 100% !important;
+        width: auto !important;
+        height: auto !important;
+    }
+
+    /* Selection mini-cards (chips): static below the preview on mobile so
+       they no longer cover the image. Wrap into rows when there are more
+       chips than fit on a single line.  pointer-events restored so the
+       chips can be tapped. */
+    [data-testid="selection-mini-cards"] {
+        position: static !important;
+        width: 100%;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 0.4rem !important;
+        padding: 0.75rem 1rem 1rem !important;
+        pointer-events: auto !important;
+        background: transparent;
     }
 }
 

@@ -17,6 +17,7 @@
 
 import axios from "axios";
 import { identify, resetAnalytics, track } from "@/lib/analytics";
+import { getSource } from "@/lib/attribution";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:8001";
 const API = `${BACKEND_URL}/api/auth`;
@@ -113,9 +114,40 @@ function unwrapError(err) {
  * Resolves with { delivered_via, expires_in_minutes, resend_cooldown_seconds, _dev_otp? }.
  * Throws an Error with a user-friendly message on failure.
  */
-export async function requestRegisterOtp(email) {
+export async function requestRegisterOtp(email, profile = null, marketingConsent = false) {
   try {
-    const res = await axios.post(`${API}/register/request-otp`, { email });
+    // `profile` is the optional professional role from the sign-up form. Sent
+    // on both register steps so it survives the OTP round-trip; the backend
+    // stores it on the user account and stamps it onto every analytics event.
+    // marketing_consent is a TOP-LEVEL field, not nested under `profile` —
+    // `profile` is a role slug string, so a boolean cannot live inside it.
+    // signup_source is the first-touch attribution record (attribution.js).
+    // Sent only on registration — it describes where the ACCOUNT came from, so
+    // a later login must never overwrite it.
+    const res = await axios.post(`${API}/register/request-otp`, {
+      email,
+      profile,
+      marketing_consent: Boolean(marketingConsent),
+      signup_source: getSource() || undefined,
+    });
+    // TEMPORARY OTP bypass: when the backend has OTP_ENABLED=0 it returns a
+    // token directly (no email step). Persist it so the caller can navigate
+    // straight in. Harmless when OTP is on — no token is present then.
+    if (res.data?.token) {
+      writeStored({ token: res.data.token, user: res.data.user });
+      identify(res.data.user?.id, {
+        email: res.data.user?.email,
+        marketing_consent: res.data.user?.marketing_consent,
+        signup_source: res.data.user?.signup_source,
+        signup_campaign: res.data.user?.signup_campaign,
+      });
+      track("user_registered", {
+        method: "otp_bypassed",
+        marketing_consent: Boolean(marketingConsent),
+        signup_source: res.data.user?.signup_source,
+        signup_campaign: res.data.user?.signup_campaign,
+      });
+    }
     return res.data;
   } catch (err) {
     throw new Error(unwrapError(err));
@@ -127,13 +159,29 @@ export async function requestRegisterOtp(email) {
  * in localStorage and resolves with the auth object so the caller can
  * navigate immediately.
  */
-export async function verifyRegisterOtp(email, otp) {
+export async function verifyRegisterOtp(email, otp, profile = null, marketingConsent = false) {
   try {
-    const res = await axios.post(`${API}/register/verify-otp`, { email, otp });
+    const res = await axios.post(`${API}/register/verify-otp`, {
+      email,
+      otp,
+      profile,
+      marketing_consent: Boolean(marketingConsent),
+      signup_source: getSource() || undefined,
+    });
     writeStored(res.data); // { token, user }
     // Stitch the anonymous pre-register session to the new user account.
-    identify(res.data.user?.id, { email: res.data.user?.email });
-    track("user_registered", { method: "email_otp" });
+    identify(res.data.user?.id, {
+      email: res.data.user?.email,
+      marketing_consent: res.data.user?.marketing_consent,
+      signup_source: res.data.user?.signup_source,
+      signup_campaign: res.data.user?.signup_campaign,
+    });
+    track("user_registered", {
+      method: "email_otp",
+      marketing_consent: Boolean(marketingConsent),
+      signup_source: res.data.user?.signup_source,
+      signup_campaign: res.data.user?.signup_campaign,
+    });
     return res.data;
   } catch (err) {
     throw new Error(unwrapError(err));
@@ -148,7 +196,12 @@ export async function login(email) {
   try {
     const res = await axios.post(`${API}/login`, { email });
     writeStored(res.data); // { token, user }
-    identify(res.data.user?.id, { email: res.data.user?.email });
+    identify(res.data.user?.id, {
+      email: res.data.user?.email,
+      marketing_consent: res.data.user?.marketing_consent,
+      signup_source: res.data.user?.signup_source,
+      signup_campaign: res.data.user?.signup_campaign,
+    });
     track("user_logged_in", { method: "email_only" });
     return res.data;
   } catch (err) {

@@ -31,7 +31,14 @@ function App() {
   useEffect(() => {
     initAnalytics();
     const cached = getUser();
-    if (cached?.id) identify(cached.id, { email: cached.email });
+    if (cached?.id) {
+      identify(cached.id, {
+        email: cached.email,
+        marketing_consent: cached.marketing_consent,
+        signup_source: cached.signup_source,
+        signup_campaign: cached.signup_campaign,
+      });
+    }
   }, []);
 
   return (
@@ -67,7 +74,10 @@ function App() {
             <Route path="/:surfaceType/:productType" element={<AuthGuard><Configurator /></AuthGuard>} />
           </Routes>
         </BrowserRouter>
-        <Toaster position="top-center" richColors />
+        {/* No `richColors` — toast status is shown by the built-in icon, not
+            by a coloured background (all toasts use a dark background; see
+            components/ui/sonner.jsx). */}
+        <Toaster position="top-center" />
         {/* Renders only on first visit (until the user accepts/declines).
             Sits above the routes so it's visible on /login too. */}
         <ConsentBanner />

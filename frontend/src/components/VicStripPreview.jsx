@@ -18,8 +18,10 @@ import {
   useRef,
   forwardRef,
   useImperativeHandle,
+  memo,
 } from "react";
 import { toPng } from "html-to-image";
+import { saveImageFile } from "@/lib/downloadImageFile";
 import { useRenderLog } from "@/hooks/use-render-log";
 
 // ─── Transition timings ───────────────────────────────────────────────────────
@@ -91,6 +93,22 @@ const VicStripPreview = forwardRef(
         setDisplayedTextureUrl(null);
         setDisplayedFallbackColor(targetFallbackColor);
         setIsLoading(false);
+        return;
+      }
+
+      // ── Color-only change ────────────────────────────────────────────
+      // When ONLY fallbackColor changed (textureUrl unchanged), avoid
+      // kicking off a loader + redundant decode of the still-displayed
+      // image. This happens on every VicStrip panel click: the new
+      // colour's hex updates on the first render after the click, but
+      // useBlobPanel hasn't produced the new blob URL yet — so
+      // textureUrl is still the previous blob. Running the full decode
+      // path here would re-decode the OLD blob (visible as a "prev
+      // panel" fetch in DevTools' Network tab) for no visual benefit:
+      // fallbackColor is only painted when displayedTextureUrl is null.
+      // The real texture swap happens once textureUrl actually changes.
+      if (targetTextureUrl === displayedTextureUrl) {
+        setDisplayedFallbackColor(targetFallbackColor);
         return;
       }
 
@@ -166,11 +184,8 @@ const VicStripPreview = forwardRef(
             try { outSrc = await addHeader(rawSrc); }
             catch (err) { console.error("[VicStripPreview] header failed:", err); }
           }
-          const link = document.createElement("a");
-          link.download = filename;
-          link.href = outSrc;
-          link.click();
-          if (isObjectUrl) setTimeout(() => URL.revokeObjectURL(rawSrc), 1000);
+          saveImageFile(outSrc, filename);
+          if (isObjectUrl) setTimeout(() => URL.revokeObjectURL(rawSrc), 15000);
         };
 
         if (textureUrl) {
@@ -189,7 +204,11 @@ const VicStripPreview = forwardRef(
         const node = previewRef.current;
         if (!node) return;
         try {
-          const dataUrl = await toPng(node, { cacheBust: true, pixelRatio: 2 });
+          // pixelRatio:4 — ultra-high-res export, ~4x denser than the
+          // on-screen render.  Matches FlatEmbossedPreview's download for
+          // consistency; stays below 5 to avoid Safari's ~8192² canvas
+          // ceiling and to keep memory in check on lower-end mobile devices.
+          const dataUrl = await toPng(node, { cacheBust: true, pixelRatio: 4 });
           await finish(dataUrl, false);
         } catch (err) {
           console.error("[VicStripPreview] download failed:", err);
@@ -269,4 +288,7 @@ const VicStripPreview = forwardRef(
 
 VicStripPreview.displayName = "VicStripPreview";
 
-export default VicStripPreview;
+// Memoised — see FlatEmbossedPreview for rationale. Props are primitives /
+// stable handlers / hook-managed blob URLs, so a shallow compare skips
+// re-renders triggered by unrelated parent state changes (pan, zoom, etc.).
+export default memo(VicStripPreview);

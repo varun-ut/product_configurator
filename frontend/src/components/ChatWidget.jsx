@@ -18,7 +18,7 @@ const PRODUCT_CHIPS = [
   { regex: /\b(embossed\s+vmt|embossed\s+panel|embossed_pet)\b/i, slug: "flat-embossed-vmd", label: "Embossed VMT", surfaceType: "embossed" },
   { regex: /\b(vicstrip|vic\s+strip|groove|grooving|grooved)\b/i, slug: "vicstrip", label: "VicStrip", surfaceType: null },
   { regex: /\b(ombre|ombrè|ombré|signature\s+ombre)\b/i, slug: "ombre", label: "Signature Ombré", surfaceType: null },
-  { regex: /\b(wood\s+panel|wood\s+acoustic|perforated\s+wood)\b/i, slug: "wood", label: "Wood", surfaceType: null },
+  { regex: /\b(wood\s+panel|wood\s+acoustic|perforated\s+wood)\b/i, slug: "wood", label: "Woodscape", surfaceType: null },
   { regex: /\b(designer\s+textile|color\s+core|colour\s+core|fabric\s+panel)\b/i, slug: "fabrics", label: "Fabrics" },
 ];
 

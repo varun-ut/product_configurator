@@ -1,5 +1,25 @@
 import { useState, useEffect, useRef } from "react";
 
+/* ─── Decode primitive ─────────────────────────────────────────────────────
+   We pre-decode each Blob URL via `new Image(); await img.decode();` before
+   exposing it to consumers.
+
+   Why not `createImageBitmap` in a worker?
+   The browser's image-decode cache is keyed by the URL the decode was
+   performed against, not by the raw blob.  `img.decode()` on a probe Image
+   set to the Blob URL warms that cache, so when the VISIBLE <img> mounts
+   later with the same Blob URL it hits the warm cache and paints atomically.
+   `createImageBitmap(blob)` decodes the blob into a stand-alone ImageBitmap
+   — fast and off-thread, but the resulting bitmap is not deposited in the
+   <img> decode cache, so the visible element still has to decode at paint
+   time.  With `decoding="async"` that second decode shows up as a visible
+   top-to-bottom scan-line on a 3000×3000 PNG.  We tried the worker briefly;
+   the scan-line on production was the immediate symptom.
+
+   `img.decode()` is also already non-blocking on Chromium/Safari for large
+   images (the engines schedule the work on an internal decode thread), so
+   we get the off-main-thread benefit AND the cache warming. */
+
 /**
  * Fetches any panel image as a Blob URL so that exactly one full-resolution
  * decoded image is held in memory at a time.
@@ -11,14 +31,25 @@ import { useState, useEffect, useRef } from "react";
  *     new image is ready, then an atomic swap occurs — no blank flash.
  *   - cache: 'no-store' prevents 304 responses whose empty body would create
  *     a 0-byte blob that renders nothing.
+ *   - Decode happens off the main thread via a singleton Web Worker calling
+ *     `createImageBitmap(blob)` (see top of file).
+ *
+ * Return shape:
+ *   - blobUrl   — current displayed blob URL (or null)
+ *   - isLoading — true while a fetch is in-flight
+ *   - sourceUrl — the input `url` that produced the current `blobUrl`.
+ *     Lets callers gate side-effects on "the hook has caught up to the
+ *     target" (`sourceUrl === requestedUrl && !isLoading`) without racing
+ *     a stale state read.
  *
  * On unmount: the active fetch is aborted and the final Blob URL is revoked.
  *
  * @param {string|null} url  - fully-qualified image URL, or null to deactivate
- * @returns {{ blobUrl: string|null, isLoading: boolean }}
+ * @returns {{ blobUrl: string|null, isLoading: boolean, sourceUrl: string|null }}
  */
 export function useBlobPanel(url) {
   const [blobUrl, setBlobUrl] = useState(null);
+  const [sourceUrl, setSourceUrl] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const currentBlobRef = useRef(null);
@@ -39,6 +70,7 @@ export function useBlobPanel(url) {
         currentBlobRef.current = null;
       }
       setBlobUrl(null);
+      setSourceUrl(null);
       setIsLoading(false);
       return;
     }
@@ -65,8 +97,12 @@ export function useBlobPanel(url) {
           return;
         }
         const newUrl = URL.createObjectURL(blob);
-        // Decode before exposing — ensures the consumer paints atomically
-        // with no partial-image flash. decode() failure is non-fatal.
+        // Decode before exposing — warms the browser's image-decode cache
+        // for THIS blob URL so the visible <img src={newUrl}> later paints
+        // atomically rather than scanning in top-to-bottom.  decode()
+        // failure is non-fatal — fall through and expose the blob URL
+        // anyway; the <img> tag will surface a real error if the bytes
+        // are corrupt.
         try {
           const probe = new Image();
           probe.src = newUrl;
@@ -82,6 +118,7 @@ export function useBlobPanel(url) {
         }
         currentBlobRef.current = newUrl;
         setBlobUrl(newUrl);
+        setSourceUrl(url);
         setIsLoading(false);
       })
       .catch((err) => {
@@ -108,7 +145,7 @@ export function useBlobPanel(url) {
     };
   }, []);
 
-  return { blobUrl, isLoading };
+  return { blobUrl, isLoading, sourceUrl };
 }
 
 /**
@@ -163,7 +200,8 @@ export function useMultiBlobPanels(urls) {
         .then(async (blob) => {
           if (!blob || blob.size === 0 || controller.signal.aborted) return;
           const newUrl = URL.createObjectURL(blob);
-          // Decode before exposing so the consumer paints atomically.
+          // Pre-decode against the blob URL so the visible <img src={newUrl}>
+          // hits a warm decode cache and paints atomically.
           try {
             const probe = new Image();
             probe.src = newUrl;

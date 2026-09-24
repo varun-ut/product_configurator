@@ -12,13 +12,19 @@ const Toaster = ({
       className="toaster group"
       toastOptions={{
         classNames: {
+          // Dark background for ALL toasts regardless of status — the status
+          // (success / error / info / warning) is communicated purely by
+          // sonner's built-in icon (green check, red ✕, etc.), NOT by the
+          // background colour.  `richColors` is intentionally NOT set on the
+          // <Toaster> (see App.js) so the per-type coloured backgrounds are
+          // off.  Slightly slimmer than default (py-2 vs the ~16px default).
           toast:
-            "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
-          description: "group-[.toast]:text-muted-foreground",
+            "group toast group-[.toaster]:bg-[#1c1c1e] group-[.toaster]:text-white group-[.toaster]:border-white/10 group-[.toaster]:shadow-lg group-[.toaster]:rounded-xl group-[.toaster]:py-2 group-[.toaster]:px-3.5 group-[.toaster]:min-h-0",
+          description: "group-[.toast]:text-white/70",
           actionButton:
-            "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
+            "group-[.toast]:bg-white group-[.toast]:text-black",
           cancelButton:
-            "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
+            "group-[.toast]:bg-white/15 group-[.toast]:text-white",
         },
       }}
       {...props} />

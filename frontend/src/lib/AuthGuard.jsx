@@ -29,7 +29,12 @@ export default function AuthGuard({ children }) {
   if (!isAuthed) {
     return (
       <Navigate
-        to="/login"
+        // Carry the query string onto /login as well as into `state.from`.
+        // Everyone arriving from a campaign email is logged out, so /login IS
+        // their landing page — if the utm_* params are stripped here, GA4
+        // measures a bare /login page view and the campaign gets no credit.
+        // `state.from` still drives where they go after signing in.
+        to={"/login" + location.search}
         state={{ from: location.pathname + location.search }}
         replace
       />
@@ -47,8 +52,16 @@ export default function AuthGuard({ children }) {
  */
 export function RedirectIfAuthed({ children }) {
   const [isAuthed, setIsAuthed] = useState(() => !!getToken());
+  const location = useLocation();
   useEffect(() => onAuthChange(() => setIsAuthed(!!getToken())), []);
 
-  if (isAuthed) return <Navigate to="/" replace />;
+  // Honour the path AuthGuard stashed (location.state.from) rather than
+  // always sending the user to "/". This matters for deep-links: the moment
+  // login stores the token, this guard re-renders and fires its <Navigate>,
+  // which races AuthScreen's own navigate(redirectTarget). If this hardcoded
+  // "/", it would clobber the deep-link redirect and drop the ?dl=1 combo —
+  // invisible for ordinary users (from === "/") but broken for deep-links.
+  // Pointing both at the same destination makes the race harmless.
+  if (isAuthed) return <Navigate to={location.state?.from || "/"} replace />;
   return children;
 }

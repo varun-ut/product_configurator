@@ -29,10 +29,11 @@ import {
   useRef,
   forwardRef,
   useImperativeHandle,
+  memo,
 } from "react";
 import { toPng } from "html-to-image";
+import { saveImageFile } from "@/lib/downloadImageFile";
 import { useRenderLog } from "@/hooks/use-render-log";
-import { useBlobPanel } from "@/hooks/use-blob-panel";
 import {
   FLAT_EMBOSSED_VMT_CONFIG,
   FLAT_EMBOSSED_VMT_DEFAULT_CONFIG,
@@ -45,8 +46,20 @@ const MIN_LOADING_MS = 400;
  *  Swap to any CSS color value — e.g. "#f5f5f5", "rgba(255,255,255,0.9)", etc. */
 const TRANSITION_OVERLAY_COLOR = "#ffffff";
 /** Extra ms the loader holds AFTER ghost drops + new image is visible beneath.
- *  Gives the browser time to fully composite all layers before revealing. */
+ *  Gives the browser time to fully composite all layers before revealing.
+ *  (Unused after the onLoad-gated visibility refactor — kept for reference.) */
 const POST_REVEAL_HOLD_MS = 1000;
+/** "Commit grace period" — after Phase 1 reports nonBlobReady=true we delay
+ *  the actual setDisplayedXxx() commit by this many ms.  Reason: a single
+ *  user click (e.g. picking a new design) often produces TWO separate prop
+ *  changes to FlatEmbossedPreview because emboss URL and texture URL flow
+ *  through separate useBlobPanel hooks in Configurator and resolve at
+ *  different times.  Without the grace period, the first prop change
+ *  commits → loader drops → second prop change fires → loader appears again
+ *  ("double loader" flash).  With it, if a second prop change arrives
+ *  inside the window, Phase 1 re-fires and the timer is cancelled, so we
+ *  end up with a single, slightly longer transition instead of two. */
+const COMMIT_GRACE_MS = 300;
 
 /**
  * Kicks off background loading for an array of image URLs so they are
@@ -114,39 +127,67 @@ const FlatEmbossedPreview = forwardRef(
     const [displayedShowTpatti, setDisplayedShowTpatti] = useState(showTpatti);
     const [displayedEmbossUrl, setDisplayedEmbossUrl] = useState(embossUrl);
 
-    // Whether the preloader is visible
-    const [isLoading, setIsLoading] = useState(false);
-    // True when the category (furniture) is also changing — overlay covers everything.
-    // False for same-category swaps — overlay sits below the furniture so only the wall area
-    // appears to be loading while the furniture remains fully visible.
-    const [loadingCoversAll, setLoadingCoversAll] = useState(false);
+    // Compute the normalised target texture URLs once — also used by the
+    // preload effect and the JSX below.
+    const targetTextureUrls = textureUrls?.length
+      ? textureUrls
+      : textureUrl
+      ? [textureUrl]
+      : null;
+    const targetTextureUrlsJson = JSON.stringify(targetTextureUrls);
+    const displayedTextureUrlsJson = JSON.stringify(displayedTextureUrls);
 
-    // Notify parent when loading state changes
-    useEffect(() => {
-      onLoadingChange?.(isLoading);
-    }, [isLoading, onLoadingChange]);
+    const hasPendingChange =
+      categoryId !== displayedCategoryId ||
+      targetTextureUrlsJson !== displayedTextureUrlsJson ||
+      showTpatti !== displayedShowTpatti ||
+      embossUrl !== displayedEmbossUrl;
+
+    // Cover-all only while the category is actually mid-swap; once the new
+    // displayed cfg has been committed, the loader drops to z=5 (wall-only).
+    const loadingCoversAll = hasPendingChange && categoryId !== displayedCategoryId;
 
     // ── Render logging (remove when done profiling) ────────────────────────
-    useRenderLog("FlatEmbossedPreview", { categoryId, textureUrl, textureUrls, showTpatti, embossUrl, displayedCategoryId, displayedTextureUrls, displayedEmbossUrl, isLoading });
+    useRenderLog("FlatEmbossedPreview", { categoryId, textureUrl, textureUrls, showTpatti, embossUrl, displayedCategoryId, displayedTextureUrls, displayedEmbossUrl, hasPendingChange });
 
     // ── Config is derived from DISPLAYED (frozen) category, not the live prop
     const cfg =
       (displayedCategoryId && FLAT_EMBOSSED_VMT_CONFIG[displayedCategoryId]) ||
       FLAT_EMBOSSED_VMT_DEFAULT_CONFIG;
 
-    // ── Fetch furniture + tpatti as blob URLs so html-to-image can inline them ──
-    // Without this, toPng's internal fetch() hits CORS when the backend is on a
-    // different host/IP than the frontend (e.g. LAN IP vs localhost).
-    const { blobUrl: furnitureBlobUrl } = useBlobPanel(cfg.furniture ?? null);
-    const { blobUrl: tpattiBlobUrl } = useBlobPanel(cfg.tpatti ?? null);
+    // ── Furniture / tpatti loading strategy ────────────────────────────────
+    // We DO NOT useBlobPanel for these layers. Reasons:
+    //   1. The configurator is the actual product — the wall panels. The
+    //      furniture is a backdrop photo. Gating the loader on the heaviest
+    //      asset in the app (3000×3000 PNG, multi-MB) blocks the user from
+    //      seeing their selected pattern. Furniture should catch up
+    //      independently, on the browser's own schedule.
+    //   2. useBlobPanel uses `cache: 'no-store'`, which means its fetch is
+    //      never shared with the <img>'s natural HTTP-cache fetch. The
+    //      result: every category change fired TWO requests for the same
+    //      furniture PNG (confirmed in the user's network panel).
+    //   3. The `<img>` element already implements an atomic swap on src
+    //      change: it keeps the OLD bitmap visible until the NEW one is
+    //      fully decoded, then swaps. We don't need probe.decode() priming
+    //      or opacity-on-load hacks to get the "no scan-line" behaviour as
+    //      long as the same <img> element is reused (no `key` change).
+    //
+    // For download (toPng / html-to-image), we add `crossOrigin="anonymous"`
+    // so the canvas serializer can read the bytes via the standard CORS
+    // path. CloudFront-served assets typically respond with
+    // `Access-Control-Allow-Origin: *`, which makes this work without any
+    // server-side change.
 
-    // ── Double-buffer transition ───────────────────────────────────────────
-    // Fires when category, texture, or showTpatti changes.
-    // 1. Freeze current display into ghost layer (instant cache re-render).
-    // 2. Commit new display state immediately — new <img> elements mount
-    //    and start painting *behind* the ghost (invisible to user).
-    // 3. img.decode() the new assets + MIN_LOADING_MS in parallel.
-    // 4. When both done → drop ghost + loader in one React batch → no white flash.
+    // ── Double-buffer transition (two-phase) ──────────────────────────────
+    // Phase 1 (this effect): when target props change, decode the panel
+    //   textures + emboss in parallel and wait MIN_LOADING_MS. Furniture +
+    //   tpatti are NOT decoded here — they load on their own via plain
+    //   <img> elements (browser HTTP-cache + atomic src swap).
+    // Phase 2 (next effect): once Phase 1 reports ready, debounce briefly
+    //   with COMMIT_GRACE_MS and then commit the displayed state.
+    const [nonBlobReady, setNonBlobReady] = useState(true);
+    const pendingTargetRef = useRef(null);
+
     useEffect(() => {
       // Cancellation flag — set to true in cleanup so stale async callbacks
       // from a previous effect run cannot modify state after the effect is gone.
@@ -156,14 +197,8 @@ const FlatEmbossedPreview = forwardRef(
       const targetShowTpatti = showTpatti;
       const targetEmbossUrl = embossUrl;
 
-      // Normalise incoming URLs to string[] | null (works for both single and continuous)
-      const targetTextureUrls = textureUrls?.length
-        ? textureUrls
-        : textureUrl
-        ? [textureUrl]
-        : null;
-      const targetTextureUrlsJson = JSON.stringify(targetTextureUrls);
-      const displayedTextureUrlsJson = JSON.stringify(displayedTextureUrls);
+      // (targetTextureUrls / targetTextureUrlsJson / displayedTextureUrlsJson
+      //  are computed at the top of the component — see hasPendingChange.)
 
       // Nothing changed from what is displayed — skip entirely
       if (
@@ -179,24 +214,32 @@ const FlatEmbossedPreview = forwardRef(
         setDisplayedTextureUrls(null);
         setDisplayedShowTpatti(targetShowTpatti);
         setDisplayedEmbossUrl(targetEmbossUrl);
-        setIsLoading(false);
+        pendingTargetRef.current = null;
+        setNonBlobReady(true);
         return;
       }
 
-      const categoryChanging = targetCategoryId !== displayedCategoryId;
+      // Stash the target so the commit effect knows what to commit when
+      // the blob hooks finish.
+      pendingTargetRef.current = {
+        targetCategoryId,
+        targetTextureUrls,
+        targetShowTpatti,
+        targetEmbossUrl,
+      };
 
-      // Freeze the display completely — nothing is committed until all assets
-      // are decoded (see Promise.all below).  The old panels, furniture and
-      // tpatti remain painted in the DOM and stay visible under the blur
-      // overlay.  Previously an early setDisplayedTextureUrls() was done for
-      // same-category switches which caused new (not-yet-decoded) <img>
-      // elements to mount immediately, making panels go blank under the blur.
-      setLoadingCoversAll(categoryChanging);
-      setIsLoading(true);
+      // Freeze: kick off non-blob decodes; loader visibility is already
+      // derived from (props vs displayed) so the loader is already on
+      // screen by the time this effect runs. We DO NOT call setIsLoading /
+      // setLoadingCoversAll any more — they're derived during render.
+      setNonBlobReady(false);
 
-      // Helper: decode an image URL silently (background prefetch)
+      // Helper: decode an image URL silently (background prefetch). Used for
+      // panel textures + emboss only; furniture/tpatti are plain <img>
+      // elements that the browser fetches and decodes natively.
       const decodeImage = (src) => {
         const img = new Image();
+        img.decoding = "async";
         img.src = src;
         return img.decode
           ? img.decode().catch(() => {})
@@ -208,23 +251,10 @@ const FlatEmbossedPreview = forwardRef(
 
       const decodePromises = [];
 
-      // Decode new furniture if category is changing
-      const newCfg =
-        (targetCategoryId && FLAT_EMBOSSED_VMT_CONFIG[targetCategoryId]) ||
-        FLAT_EMBOSSED_VMT_DEFAULT_CONFIG;
-      if (newCfg.furniture && targetCategoryId !== displayedCategoryId) {
-        decodePromises.push(decodeImage(newCfg.furniture));
-      }
-
       // Decode new panel textures if they're changing (deduplicate URLs to avoid redundant fetches)
       if (targetTextureUrls?.length && targetTextureUrlsJson !== displayedTextureUrlsJson) {
         const uniqueUrls = [...new Set(targetTextureUrls)];
         uniqueUrls.forEach((url) => decodePromises.push(decodeImage(url)));
-      }
-
-      // Decode tpatti if it's being turned on (and hasn't been shown yet)
-      if (targetShowTpatti && !displayedShowTpatti && newCfg.tpatti) {
-        decodePromises.push(decodeImage(newCfg.tpatti));
       }
 
       // Decode emboss if it's being introduced or changed
@@ -232,57 +262,262 @@ const FlatEmbossedPreview = forwardRef(
         decodePromises.push(decodeImage(targetEmbossUrl));
       }
 
-      const _decodeStart = performance.now();
       const minTimePromise = new Promise((resolve) =>
         setTimeout(resolve, MIN_LOADING_MS)
       );
 
-      let revealTimer = null;
-
       Promise.all([...decodePromises, minTimePromise]).then(() => {
         if (cancelled) return;
-        // All assets decoded. Commit display state and drop the ghost so the
-        // new image renders beneath the loader blur.
-        setDisplayedCategoryId(targetCategoryId);
-        setDisplayedTextureUrls(targetTextureUrls);
-        setDisplayedShowTpatti(targetShowTpatti);
-        setDisplayedEmbossUrl(targetEmbossUrl);
-        // Wait POST_REVEAL_HOLD_MS, then drop snapshot and loader together.
-        revealTimer = setTimeout(() => {
-          if (!cancelled) {
-            setIsLoading(false);
-          }
-        }, POST_REVEAL_HOLD_MS);
+        // Non-blob assets ready. Commit gate (next effect) will fire as
+        // soon as the blob hooks also catch up to the target.
+        setNonBlobReady(true);
       });
 
       return () => {
         cancelled = true;
-        if (revealTimer) clearTimeout(revealTimer);
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [categoryId, textureUrlsJson, showTpatti, embossUrl]);
 
+    // ── Commit effect ────────────────────────────────────────────────────
+    // Triggers when Phase 1 says non-blob assets (textures + emboss) are
+    // decoded.  Does NOT wait for furniture/tpatti — they load
+    // independently via their plain <img> elements and don't block the
+    // panels-readiness signal.
+    //
+    // COMMIT_GRACE_MS debounce: a click on a design in Configurator
+    // results in BOTH `embossUrl` and `textureUrl` (or `textureUrls`)
+    // changing, but each one flows through its own `useBlobPanel` in
+    // Configurator and resolves at a different time → the props arrive in
+    // two batches.  Without the grace period that produced two distinct
+    // loader flashes (commit on the first batch, loader returns on the
+    // second).  Deferring the commit by COMMIT_GRACE_MS gives any sibling
+    // prop change time to land in the same transition, so we end up with
+    // one loader cycle instead of two.
+    useEffect(() => {
+      const pending = pendingTargetRef.current;
+      if (!pending) return;
+      if (!nonBlobReady) return;
+
+      const commitTimer = setTimeout(() => {
+        // Atomic commit. React batches these so the DOM only paints once
+        // with the new state.
+        setDisplayedCategoryId(pending.targetCategoryId);
+        setDisplayedTextureUrls(pending.targetTextureUrls);
+        setDisplayedShowTpatti(pending.targetShowTpatti);
+        setDisplayedEmbossUrl(pending.targetEmbossUrl);
+        pendingTargetRef.current = null;
+      }, COMMIT_GRACE_MS);
+      return () => clearTimeout(commitTimer);
+    }, [nonBlobReady]);
+
     // ── Download: capture the wall-canvas DOM node to a PNG ──────────────
+    // Strategy: just before serializing, swap every cross-origin <img> src
+    // with a freshly-fetched blob URL.  Reasons:
+    //   1. html-to-image's canvas serializer is sensitive to <picture>
+    //      element source-picking + browser cache state.  Even when CORS
+    //      is correctly returned by the CDN, the canvas can end up
+    //      tainted (broken image in the output PNG) because of stale-
+    //      cache hits with mismatched CORS approval.
+    //   2. Blob URLs are same-origin to the page, so canvas serialization
+    //      is foolproof — no CORS check at all.
+    // After toPng resolves, every original src is restored so the live
+    // page keeps using the CDN URL (and the browser's cache).
     useImperativeHandle(ref, () => ({
-      downloadImage: async (overrideFilename, addHeader) => {
+      downloadImage: async (overrideFilename, addHeader, opts = {}) => {
         const node = wallCanvasRef.current;
         if (!node) return;
+        const restorers = [];
         try {
-          // cacheBust: true appends query params to every url() value, which
-          // corrupts blob: URLs (they don't support query strings) and causes
-          // ERR_FILE_NOT_FOUND. skipFonts silences the cross-origin
-          // Google Fonts SecurityError from html-to-image's CSS rule walk.
-          let dataUrl = await toPng(node, { pixelRatio: 2, skipFonts: true });
+          // 0) Wall-only export — locate the room/furniture layer so it can be
+          //    excluded from the capture.
+          //    We deliberately do NOT hide it on the live DOM.  The capture
+          //    below is asynchronous (blob prefetch + a 4x serialize), so any
+          //    visible mutation flashes the real preview at the user for the
+          //    whole of that window.  Instead the layer is dropped from
+          //    html-to-image's INTERNAL clone via the `filter` option, which
+          //    leaves the on-screen preview completely untouched.
+          //    Removing it is safe even though the furniture <img> is THE
+          //    SIZE-DEFINING element (see the layer stack at the top of this
+          //    file): html-to-image copies the full computed `cssText` onto
+          //    the clone, so the wall-canvas keeps an explicit width/height
+          //    and the absolute inset:0 layers still fill it.
+          const furnitureEl = opts.wallOnly
+            ? (() => {
+                const fImg = node.querySelector('img[alt="Room interior with furniture"]');
+                return fImg?.closest("picture") || fImg || null;
+              })()
+            : null;
+
+          // 0b) Wall-only: a panel elevation shows ONE row, but the preview
+          //     stacks `panelRowCount` of them so the pattern fills the wall
+          //     behind the furniture.  Drop rows 1..n from the clone (again,
+          //     never from the live DOM) so exactly row 0 survives.
+          //     Every stacked layer tags its rows with data-row-index — the
+          //     panel layer AND the emboss layer, which is a SEPARATE stack of
+          //     images.  Cropping to the panel row height alone was leaving a
+          //     sliver of the next emboss row whenever the two layers' images
+          //     had different aspect ratios, which is why this had to stop
+          //     being a measurement and become an explicit exclusion.
+          const extraRows = opts.wallOnly
+            ? new Set(
+                Array.from(node.querySelectorAll("[data-row-index]")).filter(
+                  (el) => el.dataset.rowIndex !== "0",
+                ),
+              )
+            : new Set();
+
+          // 1) Pre-fetch every cross-origin <img> as a blob, set src to the
+          //    blob URL, and remember how to restore.  Also strip <source>
+          //    siblings inside <picture> so the browser doesn't re-elect a
+          //    cross-origin URL after we change src.
+          // In wall-only mode the furniture is filtered out of the capture, so
+          // prefetching its (large) bitmap would be pure added latency.
+          // Rows excluded from the clone are never serialized, so prefetching
+          // their bitmaps would be pure wasted latency.
+          const imgs = Array.from(node.querySelectorAll("img")).filter(
+            (img) =>
+              (!furnitureEl || !furnitureEl.contains(img)) && !extraRows.has(img),
+          );
+          await Promise.all(
+            imgs.map(async (img) => {
+              const url = img.currentSrc || img.src;
+              if (!url || url.startsWith("blob:") || url.startsWith("data:")) return;
+              try {
+                const res = await fetch(url, { mode: "cors", credentials: "omit" });
+                if (!res.ok) return;
+                const blob = await res.blob();
+                const blobUrl = URL.createObjectURL(blob);
+
+                const originalSrc = img.getAttribute("src");
+                const picture =
+                  img.parentElement && img.parentElement.tagName === "PICTURE"
+                    ? img.parentElement
+                    : null;
+                const sourceBackups = [];
+                if (picture) {
+                  picture.querySelectorAll("source").forEach((s) => {
+                    sourceBackups.push({ el: s, srcset: s.getAttribute("srcset") });
+                    s.removeAttribute("srcset");
+                  });
+                }
+                img.setAttribute("src", blobUrl);
+                // Wait for the blob src to be decoded so toPng captures it.
+                await new Promise((resolve) => {
+                  if (img.complete && img.naturalWidth > 0) return resolve();
+                  const done = () => {
+                    img.removeEventListener("load", done);
+                    img.removeEventListener("error", done);
+                    resolve();
+                  };
+                  img.addEventListener("load", done);
+                  img.addEventListener("error", done);
+                });
+
+                restorers.push(() => {
+                  if (originalSrc) img.setAttribute("src", originalSrc);
+                  else img.removeAttribute("src");
+                  sourceBackups.forEach(({ el, srcset }) => {
+                    if (srcset) el.setAttribute("srcset", srcset);
+                  });
+                  URL.revokeObjectURL(blobUrl);
+                });
+              } catch (err) {
+                console.warn("[FlatEmbossedPreview] pre-fetch failed:", url, err);
+              }
+            }),
+          );
+
+          // 2) Serialize. `cacheBust:false` (the default) is required —
+          //    appending query strings would corrupt blob: URLs.
+          //    `skipFonts:true` silences the cross-origin Google Fonts
+          //    SecurityError from html-to-image's CSS rule walk.
+          //    `pixelRatio:4` produces an ultra-high-resolution export (~4x
+          //    denser than the on-screen render — e.g. a 1200x800 preview
+          //    yields a 4800x3200 PNG, suitable for large prints).  Stay
+          //    below 5 to avoid hitting Safari's ~8192² canvas ceiling and
+          //    to keep memory in check on lower-end mobile devices.
+          let dataUrl = await toPng(node, {
+            pixelRatio: 4,
+            skipFonts: true,
+            // Wall-only: drop the furniture from the clone (never from the
+            // live DOM — see note above).  `filter` is not invoked for the
+            // root node, so the wall-canvas itself is always kept; excluding a
+            // node also excludes its children, so `contains` covers the <img>
+            // inside the <picture>.
+            ...(furnitureEl || extraRows.size
+              ? {
+                  filter: (n) =>
+                    !(furnitureEl && furnitureEl.contains(n)) && !extraRows.has(n),
+                }
+              : {}),
+          });
+
+          // 2b) Wall-only: trim the stacked rows down to one.
+          //     The preview deliberately renders `panelRowCount` rows so the
+          //     pattern fills the full wall height behind the furniture
+          //     cutout (see the panelRowCount comment further down). With the
+          //     room hidden every stacked row becomes visible, which isn't
+          //     what a panel elevation should show.
+          //     Row height is MEASURED from the live first panel <img> rather
+          //     than assumed to be boxHeight/panelRowCount: rows are natural
+          //     height (width:100%; height:auto; flexShrink:0) and overflow
+          //     the container rather than dividing it evenly, so the even-split
+          //     assumption would slice through the middle of a row.
+          //     Cropping from the top is correct because the row stack is a
+          //     flex column anchored at the top of the wall-canvas box.
+          if (opts.wallOnly) {
+            try {
+              // With rows 1..n excluded above, the clone's only content is row 0
+              // of each layer — so the crop just has to trim the empty space
+              // they left behind.  Measure across EVERY layer's row 0 and keep
+              // the tallest: the panel and emboss images can render at slightly
+              // different heights, and cropping to the shorter one would slice
+              // through the bottom of the taller.
+              const firstRows = Array.from(
+                node.querySelectorAll('[data-row-index="0"]'),
+              );
+              const rowH = firstRows.reduce(
+                (max, el) => Math.max(max, el.getBoundingClientRect().height),
+                0,
+              );
+              const boxH = node.getBoundingClientRect().height || 0;
+              // No rowH → solid-colour fallback, nothing to crop.
+              // rowH >= boxH → one row already fills/overflows the box, so the
+              // capture is already a single (clipped) row — leave it alone.
+              if (rowH && boxH && rowH < boxH) {
+                const src = new Image();
+                await new Promise((res, rej) => {
+                  src.onload = res;
+                  src.onerror = rej;
+                  src.src = dataUrl;
+                });
+                const cropH = Math.max(1, Math.round(src.height * (rowH / boxH)));
+                const out = document.createElement("canvas");
+                out.width = src.width;
+                out.height = cropH;
+                out.getContext("2d").drawImage(
+                  src, 0, 0, src.width, cropH,
+                       0, 0, src.width, cropH,
+                );
+                dataUrl = out.toDataURL("image/png");
+              }
+            } catch (err) {
+              console.warn("[FlatEmbossedPreview] row crop failed, exporting full height:", err);
+            }
+          }
+
           if (addHeader) {
             try { dataUrl = await addHeader(dataUrl); }
             catch (err) { console.error("[FlatEmbossedPreview] header failed:", err); }
           }
-          const link = document.createElement("a");
-          link.download = overrideFilename || `univicoustic-design-${Date.now()}.png`;
-          link.href = dataUrl;
-          link.click();
+          saveImageFile(dataUrl, overrideFilename || `univicoustic-design-${Date.now()}.png`);
         } catch (err) {
           console.error("[FlatEmbossedPreview] download failed:", err);
+        } finally {
+          // 3) Restore the original srcs / sources so the live page keeps
+          //    using the CDN URL.  Runs even if toPng threw.
+          restorers.forEach((fn) => { try { fn(); } catch {} });
         }
       },
     }));
@@ -295,6 +530,51 @@ const FlatEmbossedPreview = forwardRef(
     //   AAA → AAA / ABA → ABA / ABC → ABC
     // panelRows prop allows callers to override (e.g. small 600x600 tiles need more rows).
     const panelRowCount = panelRows ?? 2;
+
+    // Loader visibility — gated ONLY on whether the panel transition is
+    // still in progress.  Furniture/tpatti are decorative and load
+    // independently via their own <img> elements; their slowness does NOT
+    // hold up the loader / configurator.
+    const isLoading = hasPendingChange;
+
+    // Notify parent when loading state changes.
+    useEffect(() => {
+      onLoadingChange?.(isLoading);
+    }, [isLoading, onLoadingChange]);
+
+    // ── Furniture / tpatti opacity gate ───────────────────────────────────
+    // The browser's "keep the OLD bitmap visible while the NEW one decodes"
+    // promise only holds when there IS a previous bitmap. On initial mount
+    // (or when the network is slow enough that the browser starts painting
+    // partial PNG rows as bytes arrive), the user can see the image
+    // assembling top-to-bottom. We hide the <img> with opacity:0 until its
+    // `load` event fires, then fade it in. This is purely cosmetic — it
+    // does NOT feed into `isLoading`, so the loader and the wall panels
+    // are unaffected by furniture/tpatti decode timing.
+    const [furnitureImgLoaded, setFurnitureImgLoaded] = useState(false);
+    const [tpattiImgLoaded, setTpattiImgLoaded] = useState(false);
+
+    // Reset the flags when the source URL changes so the new image fades
+    // in fresh. Using cfg.furniture / cfg.tpatti (DISPLAYED cfg) means the
+    // reset fires only once per actual category swap, not on every render.
+    useEffect(() => { setFurnitureImgLoaded(false); }, [cfg.furniture]);
+    useEffect(() => { setTpattiImgLoaded(false); }, [cfg.tpatti]);
+
+    // Safety net: if the load event never arrives (corrupt response,
+    // browser quirk, etc.) the layer would stay invisible forever. 30 s is
+    // a generous bound — enough to cover the user's observed 25 s prod
+    // loads, short enough that a truly broken image becomes visible
+    // rather than just absent.
+    useEffect(() => {
+      if (furnitureImgLoaded) return;
+      const t = setTimeout(() => setFurnitureImgLoaded(true), 30000);
+      return () => clearTimeout(t);
+    }, [furnitureImgLoaded, cfg.furniture]);
+    useEffect(() => {
+      if (tpattiImgLoaded) return;
+      const t = setTimeout(() => setTpattiImgLoaded(true), 30000);
+      return () => clearTimeout(t);
+    }, [tpattiImgLoaded, cfg.tpatti]);
 
     return (
       <div
@@ -395,6 +675,10 @@ const FlatEmbossedPreview = forwardRef(
                                 src={colUrl}
                                 alt=""
                                 draggable={false}
+                                // Marks this <img> as one repeated row of the stack.
+                                // The wall-only export keeps row 0 and drops the rest
+                                // from html-to-image's clone — see downloadImage.
+                                data-row-index={rowIndex}
                                 style={{
                                   width: "100%",
                                   height: "auto",
@@ -417,23 +701,49 @@ const FlatEmbossedPreview = forwardRef(
           </div>
 
           {/* ── Layer 2: T-Patti overlay (z-index 3) — hidden when emboss is active ── */}
+          {/* <picture> serves a lossless WebP to browsers that support it
+              (every modern browser shipped since ~2020).  Older browsers
+              fall back to the original PNG via the <img> child.  Same
+              pixels either way (we generated the WebPs with
+              `lossless=True`), but the WebP file is typically 1–3% of the
+              PNG for tpatti (because tpatti is mostly transparent and
+              WebP handles alpha far more efficiently). */}
           {hasTpatti && !hasEmboss && (
-            <img
-              src={tpattiBlobUrl ?? cfg.tpatti}
-              alt="T-Patti decorative overlay"
-              style={{
-                position: "absolute",
-                inset: 0,
-                width: "100%",
-                height: "100%",
-                zIndex: 3,
-                objectFit: "contain",
-                background: "transparent",
-                pointerEvents: "none",
-                userSelect: "none",
-              }}
-              data-testid="tpatti-layer"
-            />
+            <picture>
+              <source
+                srcSet={cfg.tpatti?.replace(/\.png(\?.*)?$/i, ".webp$1")}
+                type="image/webp"
+              />
+              <img
+                // Point `src` directly at the WebP (not the PNG fallback) so
+                // that html-to-image (used by the Compare feature's slot
+                // capture) inlines the WebP. html-to-image walks <img src>
+                // only — it doesn't understand <picture><source srcSet>, so
+                // a PNG fallback here would cause tpatti to be missing or
+                // delayed in captured slots. All modern browsers decode WebP
+                // (97%+ traffic) so the PNG fallback is unnecessary.
+                src={cfg.tpatti?.replace(/\.png(\?.*)?$/i, ".webp$1")}
+                alt="T-Patti decorative overlay"
+                crossOrigin="anonymous"
+                loading="eager"
+                onLoad={() => setTpattiImgLoaded(true)}
+                onError={() => setTpattiImgLoaded(true)}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  width: "100%",
+                  height: "100%",
+                  zIndex: 3,
+                  objectFit: "contain",
+                  background: "transparent",
+                  pointerEvents: "none",
+                  userSelect: "none",
+                  opacity: tpattiImgLoaded ? 1 : 0,
+                  transition: "opacity 150ms ease-out",
+                }}
+                data-testid="tpatti-layer"
+              />
+            </picture>
           )}
 
           {/* ── Layer 3: Emboss overlay (z-index 4) — above T-Patti ── */}
@@ -472,6 +782,10 @@ const FlatEmbossedPreview = forwardRef(
                         src={displayedEmbossUrl}
                         alt=""
                         draggable={false}
+                        // Row 0 of the emboss stack — the row the wall-only
+                        // export keeps.  This layer is independent of the panel
+                        // layer above, so it needs its own row markers.
+                        data-row-index={0}
                         style={{
                           width: "100%",
                           height: "auto",
@@ -488,6 +802,8 @@ const FlatEmbossedPreview = forwardRef(
                           src={displayedEmbossUrl}
                           alt=""
                           draggable={false}
+                          // +1 because this map renders rows 1..n-1.
+                          data-row-index={rowIndex + 1}
                           style={{
                             width: "100%",
                             height: "auto",
@@ -515,21 +831,63 @@ const FlatEmbossedPreview = forwardRef(
            * The PNG must have a transparent cut-out where the wall panels
            * are visible so the layers beneath show through.
            */}
-          <img
-            key={cfg.furniture}
-            src={furnitureBlobUrl ?? cfg.furniture}
-            alt="Room interior with furniture"
-            style={{
-              position: "relative",
-              display: "block",
-              maxWidth: "calc(100vw - 360px)",
-              maxHeight: "calc(100vh - 64px)",
-              zIndex: 6,
-              userSelect: "none",
-              pointerEvents: "none",
-            }}
-            data-testid="furniture-layer"
-          />
+          {/* <picture> serves a lossless WebP variant of the room PNG —
+              same pixels (we encoded with lossless=True), roughly 25-75%
+              of the original size depending on the source. Browsers that
+              don't support WebP (essentially none, in 2025+) fall back to
+              the original <img src=…png>.  See backend/static/images/.../
+              for the source PNGs and the matching .webp companions. */}
+          <picture>
+            <source
+              srcSet={cfg.furniture?.replace(/\.png(\?.*)?$/i, ".webp$1")}
+              type="image/webp"
+            />
+            <img
+              // No `key={cfg.furniture}` — same <img> element across
+              // category swaps, so the browser keeps the OLD bitmap
+              // visible until the NEW one is fully decoded (atomic swap).
+              //
+              // width / height attributes reserve the aspect ratio so the
+              // wall-canvas wrapper has stable dimensions BEFORE bytes
+              // arrive.  All furniture sources are square (3000×3000 or
+              // 6000×6000), so 1:1 is correct for the whole set.
+              //
+              // opacity gate (furnitureImgLoaded) hides partial paint on
+              // slow / initial-mount loads.  Loader (isLoading) is
+              // independent — see the derivation higher up in the file.
+              //
+              // Responsive width: on mobile (< md breakpoint) the layout
+              // has no 360 px sidebar so the image just fills the
+              // available space.  At md+ we cap at viewport-minus-sidebar.
+              // Tailwind handles the breakpoint; inline style stays for
+              // the runtime-derived bits (opacity, transition).
+              // Point `src` directly at the WebP (not the PNG fallback) so
+              // that html-to-image (used by the Compare feature's slot
+              // capture) inlines the WebP. html-to-image walks <img src>
+              // only — it doesn't understand <picture><source srcSet>, so a
+              // PNG fallback here would cause furniture to be missing or
+              // delayed in captured slots. All modern browsers decode WebP
+              // (97%+ traffic) so the PNG fallback is unnecessary.
+              src={cfg.furniture?.replace(/\.png(\?.*)?$/i, ".webp$1")}
+              alt="Room interior with furniture"
+              width={3000}
+              height={3000}
+              crossOrigin="anonymous"
+              loading="eager"
+              onLoad={() => setFurnitureImgLoaded(true)}
+              onError={() => setFurnitureImgLoaded(true)}
+              className="block w-auto h-auto max-w-full md:max-w-[calc(100vw-360px)] max-h-[calc(100vh-64px)]"
+              style={{
+                position: "relative",
+                zIndex: 6,
+                userSelect: "none",
+                pointerEvents: "none",
+                opacity: furnitureImgLoaded ? 1 : 0,
+                transition: "opacity 150ms ease-out",
+              }}
+              data-testid="furniture-layer"
+            />
+          </picture>
 
           {/* ── Layer 5: Preloader ──
                Category changing  → z=10 (above furniture): full white overlay.
@@ -561,4 +919,9 @@ const FlatEmbossedPreview = forwardRef(
 
 FlatEmbossedPreview.displayName = "FlatEmbossedPreview";
 
-export default FlatEmbossedPreview;
+// Memoised so it doesn't re-render on every parent (Configurator) render —
+// e.g. during pan/zoom or unrelated state changes.  All props are either
+// primitives, stable useCallback handlers, or hook-managed blob URLs/arrays
+// that only change on an actual selection change, so a shallow compare safely
+// skips the heavy multi-layer re-render when nothing relevant changed.
+export default memo(FlatEmbossedPreview);

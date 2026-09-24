@@ -6,11 +6,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { requestRegisterOtp, verifyRegisterOtp, login as loginCall } from "@/lib/auth";
+import { PRIVACY_POLICY_URL, TERMS_URL, legalLinkProps } from "@/lib/legalLinks";
 
 // Hero image — can be a public/* path or any URL. Replace anytime.
 const HERO_IMAGE = "/auth-hero.png";
 
 const OTP_LENGTH = 6;
+
+// Optional professional role, captured on the sign-up form only. Analytics-only:
+// it never gates anything and is never required. Values are stable slugs.
+const PROFILE_OPTIONS = [
+  { value: "architect",           label: "Architect" },
+  { value: "interior_designer",   label: "Interior Designer" },
+  { value: "pmc",                 label: "Project Management Consultant" },
+  { value: "acoustic_consultant", label: "Acoustic Consultant" },
+  { value: "other",               label: "Other" },
+];
 
 /**
  * AuthScreen
@@ -37,6 +48,13 @@ const OTP_LENGTH = 6;
 export default function AuthScreen() {
   const [mode, setMode] = useState("login"); // 'login' | 'register' | 'otp'
   const [email, setEmail] = useState("");
+  // Optional profile chosen on the sign-up form; kept here so it survives the
+  // register → OTP step. Applied to analytics once the account is created.
+  const [profile, setProfile] = useState("");
+  // Marketing opt-in from the sign-up form. Sent as its OWN field, not
+  // nested inside `profile` — `profile` is a role slug string ("architect"),
+  // so a boolean cannot live under it.
+  const [marketingConsent, setMarketingConsent] = useState(false);
   const [otp, setOtp] = useState(Array(OTP_LENGTH).fill(""));
   const [busy, setBusy] = useState(false);
   // Resend cooldown — counts down from the value the backend gave us so the
@@ -61,6 +79,10 @@ export default function AuthScreen() {
   // the tour's text-based selectors find their anchors.
   const TOUR_SEEN_KEY = "uv_tour_seen_v1";
   const maybeStartTour = () => {
+    // Skip the tour when the post-login redirect is a deep-link (dl=1) — the
+    // tour's demo-fill would overwrite the specific combo the link encodes.
+    // (The tour script's own auto-launch is guarded the same way.)
+    if (/[?&]dl=1(&|$)/.test(redirectTarget)) return;
     let seen = false;
     try { seen = !!localStorage.getItem(TOUR_SEEN_KEY); } catch (_) { return; }
     if (seen) return;
@@ -114,7 +136,15 @@ export default function AuthScreen() {
     if (!email.trim()) return;
     setBusy(true);
     try {
-      const data = await requestRegisterOtp(email);
+      const data = await requestRegisterOtp(email, profile || null, marketingConsent);
+      // TEMPORARY OTP bypass: backend (OTP_ENABLED=0) already created the user
+      // and issued a token — skip the code-entry screen and go straight in.
+      if (data.otp_bypassed || data.token) {
+        toast.success("Account created — welcome!");
+        maybeStartTour();
+        navigate(redirectTarget, { replace: true });
+        return;
+      }
       setResendIn(data.resend_cooldown_seconds ?? 30);
       if (data._dev_otp) setDevOtp(data._dev_otp);
       goToMode("otp");
@@ -137,7 +167,7 @@ export default function AuthScreen() {
     if (code.length !== OTP_LENGTH) return;
     setBusy(true);
     try {
-      await verifyRegisterOtp(email, code);
+      await verifyRegisterOtp(email, code, profile || null, marketingConsent);
       toast.success("Account verified — welcome!");
       maybeStartTour();
       navigate(redirectTarget, { replace: true });
@@ -154,7 +184,7 @@ export default function AuthScreen() {
     if (resendIn > 0 || busy) return;
     setBusy(true);
     try {
-      const data = await requestRegisterOtp(email);
+      const data = await requestRegisterOtp(email, profile || null, marketingConsent);
       setResendIn(data.resend_cooldown_seconds ?? 30);
       if (data._dev_otp) setDevOtp(data._dev_otp);
       resetOtpState();
@@ -211,6 +241,10 @@ export default function AuthScreen() {
             <RegisterPanel
               email={email}
               setEmail={setEmail}
+              profile={profile}
+              marketingConsent={marketingConsent}
+              setMarketingConsent={setMarketingConsent}
+              setProfile={setProfile}
               busy={busy}
               onSubmit={handleRegisterSubmit}
               onSwitchToLogin={() => goToMode("login")}
@@ -300,25 +334,61 @@ function LoginPanel({ email, setEmail, busy, onSubmit, onSwitchToRegister }) {
   );
 }
 
-function RegisterPanel({ email, setEmail, busy, onSubmit, onSwitchToLogin }) {
+function RegisterPanel({ email, setEmail, profile, setProfile, marketingConsent, setMarketingConsent, busy, onSubmit, onSwitchToLogin }) {
   return (
     <>
       <h1 className="font-manrope text-2xl md:text-3xl font-semibold text-[hsl(215,25%,27%)] tracking-tight">
         Create your account
       </h1>
       <p className="text-sm text-[hsl(215,16%,47%)] mt-2 mb-8">
-        We'll send a 6-digit code to your email to verify it's really you.
+        Enter your email to create your account.
       </p>
       <form onSubmit={onSubmit} className="space-y-4" data-testid="auth-register-form">
         <EmailField email={email} setEmail={setEmail} />
+        <ProfileField profile={profile} setProfile={setProfile} />
+        {/* Marketing opt-in. Unticked by default and never required to sign
+            up — consent has to be a positive action, so no pre-ticking and no
+            blocking the submit button on it. */}
+        <label className="flex items-start gap-2.5 pt-1 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={marketingConsent}
+            onChange={(e) => setMarketingConsent(e.target.checked)}
+            className="mt-0.5 h-4 w-4 flex-shrink-0 rounded border-[hsl(var(--border))] text-accent focus:ring-accent cursor-pointer"
+            data-testid="auth-marketing-consent"
+          />
+          <span className="text-[13px] text-[hsl(215,16%,47%)] leading-relaxed">
+            Email me about the Visual Configurator and UniVicoustic products.
+            Unsubscribe anytime.{" "}
+            <a
+              href={PRIVACY_POLICY_URL}
+              {...legalLinkProps}
+              onClick={(e) => e.stopPropagation()}
+              className="underline hover:text-[hsl(215,25%,27%)] transition-colors"
+            >
+              Privacy Policy
+            </a>
+          </span>
+        </label>
         <Button
           type="submit"
           disabled={busy || !email.trim()}
           className="w-full h-11 bg-accent hover:bg-accent-hover text-white font-medium mt-2 shadow-sm disabled:opacity-50"
           data-testid="auth-register-submit"
         >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Send verification code <ArrowRight className="h-4 w-4 ml-1.5" /></>}
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Sign up <ArrowRight className="h-4 w-4 ml-1.5" /></>}
         </Button>
+        {/* Sits under the submit button, per the wording legal supplied. */}
+        <p className="text-[13px] text-[hsl(215,16%,47%)] text-center leading-relaxed">
+          By creating an account you agree to our{" "}
+          <a href={TERMS_URL} {...legalLinkProps} className="underline hover:text-[hsl(215,25%,27%)] transition-colors">
+            Terms
+          </a>{" "}
+          and{" "}
+          <a href={PRIVACY_POLICY_URL} {...legalLinkProps} className="underline hover:text-[hsl(215,25%,27%)] transition-colors">
+            Privacy Policy
+          </a>.
+        </p>
       </form>
       <p className="text-sm text-[hsl(215,16%,47%)] text-center mt-6">
         Already have an account?{" "}
@@ -503,6 +573,33 @@ function EmailField({ email, setEmail }) {
         required
         data-testid="auth-email-input"
       />
+    </div>
+  );
+}
+
+// Optional professional role — sign-up form only. Never required; leaving it on
+// "Select your role…" simply records no profile.
+function ProfileField({ profile, setProfile }) {
+  return (
+    <div className="space-y-1.5">
+      <Label
+        htmlFor="auth-profile"
+        className="text-[11px] font-semibold text-[hsl(215,25%,27%)] uppercase tracking-wider"
+      >
+        Your profile <span className="text-[hsl(215,16%,55%)] font-normal normal-case tracking-normal">(optional)</span>
+      </Label>
+      <select
+        id="auth-profile"
+        value={profile}
+        onChange={(e) => setProfile(e.target.value)}
+        className="flex h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-[hsl(215,25%,27%)] cursor-pointer ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        data-testid="auth-profile-select"
+      >
+        <option value="">Select your role…</option>
+        {PROFILE_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
     </div>
   );
 }

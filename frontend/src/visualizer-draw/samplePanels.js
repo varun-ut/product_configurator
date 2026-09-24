@@ -29,6 +29,7 @@
  */
 import {
   VICSTRIP_PRODUCT,
+  VICSTRIP_COLOR_TO_CODE,
   getImagePath,
   getVicstripThumbnailUrl,
   COLOR_CORE_COLORS,
@@ -48,29 +49,8 @@ import {
 const ASSETS = process.env.REACT_APP_ASSETS_URL || "";
 
 // ─── VicStrip ────────────────────────────────────────────────────────────────
-// VicStrip thumbnails on disk are keyed by design_code (vcs0001…vcs0016),
-// not by color id.  The mapping below is lifted verbatim from
-// backend/data/products.json (the canonical source the configurator
-// itself consumes).  16 colors × 4 patterns share the same color → code
-// mapping, so we only need it once.
-const VICSTRIP_COLOR_TO_CODE = {
-  "alpine-frost":    "VCS-0001",
-  "amber-walnut":    "VCS-0002",
-  "auburn-oak":      "VCS-0003",
-  "bourbon-walnut":  "VCS-0004",
-  "carbon-black":    "VCS-0005",
-  "glacier-white":   "VCS-0006",
-  "lunar-ash":       "VCS-0007",
-  "merlot":          "VCS-0008",
-  "monarch-oak":     "VCS-0009",
-  "obsidian-black":  "VCS-0010",
-  "sage-green":      "VCS-0011",
-  "sierra-elm":      "VCS-0012",
-  "silver-birch":    "VCS-0013",
-  "solara":          "VCS-0014",
-  "toffee-oak":      "VCS-0015",
-  "windsor-oak":     "VCS-0016",
-};
+// Canonical color-id → VCS code mapping lives in @/data/skus so the
+// configurator and visualizer share one source of truth.
 
 // Wall texture uses the pre-cropped 814×1900 cutouts at
 // /static/images/vicstrip/panels/...  (same files the configurator's

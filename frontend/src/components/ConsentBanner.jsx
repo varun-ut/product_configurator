@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Cookie, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { hasDecidedConsent, setConsent, onConsentChange } from "@/lib/analytics";
+import { PRIVACY_POLICY_URL, legalLinkProps } from "@/lib/legalLinks";
 
 /**
  * ConsentBanner
@@ -9,8 +10,9 @@ import { hasDecidedConsent, setConsent, onConsentChange } from "@/lib/analytics"
  * GDPR-friendly opt-in for analytics (PRD Section 6).
  *
  *   • Renders only when the user hasn't decided yet (no localStorage flag).
- *   • Two buttons: "Accept all" → flips PostHog to opt-in;
- *                   "Decline"   → keeps PostHog in opt-out.
+ *   • Two buttons: "Accept all" → flips analytics opt-in (events flow to
+ *                                 our /api/events endpoint);
+ *                   "Decline"   → keeps analytics opt-out (no events sent).
  *   • Either choice persists in localStorage so the banner doesn't
  *     reappear on the next visit.
  *   • Sits at the bottom of the viewport, doesn't block interaction —
@@ -41,9 +43,19 @@ export default function ConsentBanner() {
           </div>
           <div className="flex-1 text-sm text-[hsl(215,25%,27%)] leading-relaxed">
             <p className="font-medium">We use cookies for analytics.</p>
+            {/* Wording supplied by legal. The previous copy said "anonymous
+                usage", which stopped being accurate once a signed-in user's
+                email started reaching Brevo for email personalisation. */}
             <p className="text-[hsl(215,16%,47%)] text-[13px] mt-0.5">
-              We track anonymous usage to improve the configurator — no personal data is sold.
-              You can change this any time in settings.
+              We use cookies to improve the Configurator and, if you're signed in, to
+              personalise our emails.{" "}
+              <a
+                href={PRIVACY_POLICY_URL}
+                {...legalLinkProps}
+                className="underline hover:text-[hsl(215,25%,27%)] transition-colors"
+              >
+                Privacy Policy
+              </a>
             </p>
           </div>
         </div>

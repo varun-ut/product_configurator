@@ -14,8 +14,9 @@
  * <Route> in App.js + the /api/visualize-walls endpoint in server.py.
  * No other files import anything from here.
  */
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { track } from "@/lib/analytics";
 import { ArrowLeft, Sparkles, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import PanelPicker from "./PanelPicker";
@@ -25,6 +26,15 @@ import { detectWalls } from "./claudeWallEngine";
 import { SAMPLE_PANELS } from "./samplePanels";
 
 export default function VisualizerPage() {
+  // Fire once when the route mounts. The ref guards against StrictMode's
+  // double-mount in development, which would otherwise count it twice.
+  const trackedOpen = useRef(false);
+  useEffect(() => {
+    if (trackedOpen.current) return;
+    trackedOpen.current = true;
+    track("visualizer_opened");
+  }, []);
+
   const [defaultPanel, setDefaultPanel] = useState(SAMPLE_PANELS[0]);
   const [photo, setPhoto] = useState(null);
   // Phase: 'setup' (picking inputs) → 'detecting' (call in flight) →

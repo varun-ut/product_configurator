@@ -7,7 +7,7 @@
  * Furniture renders on top of the panel wall.
  */
 
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, memo } from 'react';
 
 const ROOM_SETUP_URL = '/images/room-setups/Colour_Core_Setup.png';
 const PREVIEW_SIZE = 680; // fixed px
@@ -111,4 +111,7 @@ const SignatureOmbreRoomPreview = ({ panelImage, panelCount = 3, className }) =>
   );
 };
 
-export default SignatureOmbreRoomPreview;
+// Memoised — props are panelImage (hook-managed), panelCount (literal) and
+// className (literal), so a shallow compare skips re-renders from unrelated
+// parent state changes.
+export default memo(SignatureOmbreRoomPreview);

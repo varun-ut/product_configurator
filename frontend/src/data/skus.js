@@ -1,11 +1,19 @@
 // Hardcoded SKU data for VicStrip Panels
 // Each pattern has 16 colors
 
-// Colours are grouped visually in the picker by simple ordering — wood-ish
-// finishes first, then solid colours.  No header / divider in the UI; the
+// Colours are grouped visually in the picker by simple ordering — solid
+// colours first, then wood finishes.  No header / divider in the UI; the
 // adjacency is what creates the visual grouping.
 const COLORS = [
+  // ── Solid colours ───────────────────────────────────────────────────
+  { id: "glacier-white",   name: "Glacier White",   hex: "#F8F8F8" },
+  { id: "lunar-ash",       name: "Lunar Ash",       hex: "#B0B0B0" },
+  { id: "merlot",          name: "Merlot",          hex: "#721F1F" },
+  { id: "sage-green",      name: "Sage Green",      hex: "#838E7C" },
+  { id: "carbon-black",    name: "Carbon Black",    hex: "#1C1C1C" },
+  { id: "solara",          name: "Solara",          hex: "#78756C" },
   // ── Wood finishes ────────────────────────────────────────────────────
+  { id: "alpine-frost",    name: "Alpine Frost",    hex: "#BCB9AB" },
   { id: "amber-walnut",    name: "Amber Walnut",    hex: "#A4A499" },
   { id: "auburn-oak",      name: "Auburn Oak",      hex: "#C99E61" },
   { id: "bourbon-walnut",  name: "Bourbon Walnut",  hex: "#41322B" },
@@ -15,15 +23,31 @@ const COLORS = [
   { id: "silver-birch",    name: "Silver Birch",    hex: "#C7BAA5" },
   { id: "toffee-oak",      name: "Toffee Oak",      hex: "#B17547" },
   { id: "windsor-oak",     name: "Windsor Oak",     hex: "#B5A680" },
-  // ── Solid colours ───────────────────────────────────────────────────
-  { id: "glacier-white",   name: "Glacier White",   hex: "#F8F8F8" },
-  { id: "lunar-ash",       name: "Lunar Ash",       hex: "#B0B0B0" },
-  { id: "merlot",          name: "Merlot",          hex: "#721F1F" },
-  { id: "sage-green",      name: "Sage Green",      hex: "#838E7C" },
-  { id: "carbon-black",    name: "Carbon Black",    hex: "#1C1C1C" },
-  { id: "solara",          name: "Solara",          hex: "#78756C" },
-  { id: "alpine-frost",    name: "Alpine Frost",    hex: "#BCB9AB" },
 ];
+
+// Canonical color-id → VCS thumbnail/panel code mapping. Source of truth for
+// which VCS file shows which color: vcs0001.png == alpine-frost,
+// vcs0008.png == merlot, vcs0015.png == toffee-oak, etc.
+// COLORS array order (above) drives UI tile display order and is independent
+// of this mapping — do NOT renumber to match COLORS index.
+export const VICSTRIP_COLOR_TO_CODE = {
+  "alpine-frost":    "VCS-0001",
+  "amber-walnut":    "VCS-0002",
+  "auburn-oak":      "VCS-0003",
+  "bourbon-walnut":  "VCS-0004",
+  "carbon-black":    "VCS-0005",
+  "glacier-white":   "VCS-0006",
+  "lunar-ash":       "VCS-0007",
+  "merlot":          "VCS-0008",
+  "monarch-oak":     "VCS-0009",
+  "obsidian-black":  "VCS-0010",
+  "sage-green":      "VCS-0011",
+  "sierra-elm":      "VCS-0012",
+  "silver-birch":    "VCS-0013",
+  "solara":          "VCS-0014",
+  "toffee-oak":      "VCS-0015",
+  "windsor-oak":     "VCS-0016",
+};
 
 const PATTERNS = [
   {
@@ -321,8 +345,14 @@ export const FLAT_EMBOSSED_VMT_DEFAULT_CONFIG = {
 // shares the same canonical folder.  Adding a new pattern: drop the source
 // PNG into backend/static/images/emboss-thumbnails/ and regenerate the
 // cache JPG / _area50 crop there too — no per-product duplication.
+// Cache-bust version stamp appended to every emboss thumbnail URL. Because
+// the S3 objects are uploaded with `Cache-Control: immutable`, browsers will
+// otherwise keep an old copy pinned for a year and never refetch — bumping
+// this constant forces a one-time refetch across every user's browser after
+// a deploy. **Bump this whenever you replace one or more emboss thumbs.**
+const EMBOSS_THUMB_VERSION = 2;
 const EMBOSS_THUMB = (file) =>
-  `${ASSETS_URL}/static/_thumbcache/emboss-thumbnails/${file.toLowerCase().replace(/\.[^.]+$/, '.jpg')}`;
+  `${ASSETS_URL}/static/_thumbcache/emboss-thumbnails/${file.toLowerCase().replace(/\.[^.]+$/, '.jpg')}?v=${EMBOSS_THUMB_VERSION}`;
 
 // Per-product aliases kept for backward-compatibility with existing call
 // sites — they all resolve to the same canonical URL now.
@@ -332,7 +362,7 @@ export const FLAT_EMBOSSED_EMBOSS_PATTERNS = [
   { id: "ribbed_25mm", name: "Ribbed 25mm", thumbnailUrl: FVP_EMBOSS_THUMB("ribbed_25mm.png") },
   { id: "ribbed_45mm", name: "Ribbed 45mm", thumbnailUrl: FVP_EMBOSS_THUMB("ribbed_45mm.png") },
   { id: "ribbed_60mm", name: "Ribbed 60mm", thumbnailUrl: FVP_EMBOSS_THUMB("ribbed_60mm.png") },
-  { id: "tappered",   name: "Tappered",   thumbnailUrl: FVP_EMBOSS_THUMB("tappered.png")   },
+  { id: "tappered",   name: "Tapered",    thumbnailUrl: FVP_EMBOSS_THUMB("tappered.png")   },
   { id: "triangle",   name: "Triangle",   thumbnailUrl: FVP_EMBOSS_THUMB("triangle.png")   },
   { id: "square_30",  name: "Square 30",  thumbnailUrl: FVP_EMBOSS_THUMB("square_30.png")  },
   { id: "deck",       name: "Deck",       thumbnailUrl: FVP_EMBOSS_THUMB("deck.png")       },
@@ -347,8 +377,11 @@ export const FLAT_EMBOSSED_EMBOSS_PATTERNS = [
  * and falls back to `null` if the size isn't listed (meaning "no filter").
  */
 export const LEATHER_EMBOSS_BY_SIZE = {
+  // Mirrors the fabric split: the 3D patterns sit at 1200x2800 and the mosaic
+  // patterns (triangle, square_30, deck) at every smaller size.  Leather
+  // carries a narrower set than fabric — no axis, square_8 or symmetric.
   "1200x2800": ["flux_ribbed", "ribbed_45mm", "ribbed_60mm", "tappered", "aqualine", "penray"],
-  "1200x2400": ["flux_ribbed", "ribbed_45mm", "ribbed_60mm", "tappered", "triangle", "square_30", "deck", "aqualine", "penray"],
+  "1200x2400": ["triangle", "square_30", "deck"],
   "600x600":   ["triangle", "square_30", "deck"],
   "600x1200":  ["triangle", "square_30", "deck"],
 };
@@ -469,28 +502,48 @@ export const COLOR_CORE_SIZES = ["1200x2800", "1200x2400", "600x600", "600x1200"
 
 const CC_EMBOSS_THUMB = EMBOSS_THUMB;
 
+/**
+ * Thicknesses a pattern cannot be manufactured in.
+ *
+ * Alter Flute is only produced on a 12mm panel, so it must not be offerable on
+ * 25mm — quoting that combination would send an unmakeable spec to the factory.
+ * It's the same physical emboss in Colour Core and Designer Textile, hence the
+ * shared constant across both pattern lists.
+ *
+ * Declared per pattern alongside availableSizes so a future restriction is a
+ * data edit rather than another special case in the configurator.
+ */
+export const ALTER_FLUTE_EXCLUDED_THICKNESSES = ["25mm (PET Panel)"];
+
+/**
+ * True when `pattern` may be offered at `thickness`.  A pattern with no
+ * excludedThicknesses, or a thickness not yet chosen, is always allowed.
+ */
+export const isEmbossAvailableForThickness = (pattern, thickness) =>
+  !thickness || !pattern?.excludedThicknesses?.includes(thickness);
+
 export const COLOR_CORE_EMBOSS_PATTERNS = [
-  { id: "ribbed_25mm", name: "Ribbed 25mm",  thumbnailUrl: CC_EMBOSS_THUMB("ribbed_25mm.png"),  availableSizes: ["1200x2800", "1200x2400"] },
-  { id: "ribbed_45mm", name: "Ribbed 45mm",  thumbnailUrl: CC_EMBOSS_THUMB("ribbed_45mm.png"),  availableSizes: ["1200x2800", "1200x2400"] },
-  { id: "ribbed_60mm", name: "Ribbed 60mm",  thumbnailUrl: CC_EMBOSS_THUMB("ribbed_60mm.png"),  availableSizes: ["1200x2800", "1200x2400"] },
-  { id: "ribbed_duo",  name: "Ribbed Duo",   thumbnailUrl: CC_EMBOSS_THUMB("ribbed_duo.png"),   availableSizes: ["1200x2800", "1200x2400"] },
-  { id: "elliptera",  name: "Elliptera",    thumbnailUrl: CC_EMBOSS_THUMB("elliptera.png"),    availableSizes: ["1200x2800", "1200x2400"] },
-  { id: "ellipsia",   name: "Ellipsia",     thumbnailUrl: CC_EMBOSS_THUMB("ellipsia.png"),     availableSizes: ["1200x2800", "1200x2400"] },
-  { id: "flux_ribbed",name: "Flux Ribbed",  thumbnailUrl: CC_EMBOSS_THUMB("flux_ribbed.png"),  availableSizes: ["1200x2800", "1200x2400"] },
-  { id: "aqualine",   name: "Aqualine",     thumbnailUrl: CC_EMBOSS_THUMB("aqualine.png"),     availableSizes: ["1200x2800", "1200x2400"] },
-  { id: "tappered",   name: "Tapered",      thumbnailUrl: CC_EMBOSS_THUMB("tappered.png"),     availableSizes: ["1200x2800", "1200x2400"] },
-  { id: "axis",       name: "Axis",         thumbnailUrl: CC_EMBOSS_THUMB("axis.png"),          availableSizes: ["1200x2400", "600x600", "600x1200"], panelRows: 6 },
-  { id: "square_30",  name: "Square 30",    thumbnailUrl: CC_EMBOSS_THUMB("square_30.png"),    availableSizes: ["1200x2400", "600x600", "600x1200"], panelRows: 6 },
-  { id: "deck",       name: "Deck",         thumbnailUrl: CC_EMBOSS_THUMB("deck.png"),          availableSizes: ["1200x2400", "600x600", "600x1200"], panelRows: 6 },
-  { id: "triangle",   name: "Triangle",     thumbnailUrl: CC_EMBOSS_THUMB("triangle.png"),      availableSizes: ["1200x2400", "600x600", "600x1200"], panelRows: 6 },
-  { id: "square_8",   name: "Square 8",     thumbnailUrl: CC_EMBOSS_THUMB("square_8.png"),     availableSizes: ["1200x2400", "600x600", "600x1200"], panelRows: 6 },
-  { id: "symmetric",  name: "Symmetric",    thumbnailUrl: CC_EMBOSS_THUMB("symmetric.png"),    availableSizes: ["1200x2400", "600x1200"], panelRows: 6 },
-  { id: "alter_flute",name: "Alter Flute",  thumbnailUrl: CC_EMBOSS_THUMB("afterflute.png"),  availableSizes: ["1200x2800", "1200x2400"] },
-  { id: "bloom",      name: "Bloom",        thumbnailUrl: CC_EMBOSS_THUMB("bloom.png"),        availableSizes: ["1200x2800", "1200x2400"] },
-  { id: "drift",      name: "Drift",        thumbnailUrl: CC_EMBOSS_THUMB("drift.png"),        availableSizes: ["1200x2800", "1200x2400"] },
-  { id: "shard",      name: "Shard",        thumbnailUrl: CC_EMBOSS_THUMB("shard.png"),        availableSizes: ["1200x2800", "1200x2400"] },
-  { id: "weave",      name: "Weave",        thumbnailUrl: CC_EMBOSS_THUMB("weave.png"),        availableSizes: ["1200x2800", "1200x2400"] },
-  { id: "penray",     name: "Penray",       thumbnailUrl: CC_EMBOSS_THUMB("penray.png"),       availableSizes: ["1200x2800", "1200x2400"] },
+  { id: "ribbed_25mm", name: "Ribbed 25mm",  thumbnailUrl: CC_EMBOSS_THUMB("ribbed_25mm.png"),  availableSizes: ["1200x2800"] },
+  { id: "ribbed_45mm", name: "Ribbed 45mm",  thumbnailUrl: CC_EMBOSS_THUMB("ribbed_45mm.png"),  availableSizes: ["1200x2800"] },
+  { id: "ribbed_60mm", name: "Ribbed 60mm",  thumbnailUrl: CC_EMBOSS_THUMB("ribbed_60mm.png"),  availableSizes: ["1200x2800"] },
+  { id: "ribbed_duo",  name: "Ribbed Duo",   thumbnailUrl: CC_EMBOSS_THUMB("ribbed_duo.png"),   availableSizes: ["1200x2800"] },
+  { id: "elliptera",  name: "Elliptera",    thumbnailUrl: CC_EMBOSS_THUMB("elliptera.png"),    availableSizes: ["1200x2800"] },
+  { id: "ellipsia",   name: "Ellipsia",     thumbnailUrl: CC_EMBOSS_THUMB("ellipsia.png"),     availableSizes: ["1200x2800"] },
+  { id: "flux_ribbed",name: "Flux Ribbed",  thumbnailUrl: CC_EMBOSS_THUMB("flux_ribbed.png"),  availableSizes: ["1200x2800"] },
+  { id: "aqualine",   name: "Aqualine",     thumbnailUrl: CC_EMBOSS_THUMB("aqualine.png"),     availableSizes: ["1200x2800"] },
+  { id: "tappered",   name: "Tapered",      thumbnailUrl: CC_EMBOSS_THUMB("tappered.png"),     availableSizes: ["1200x2800"] },
+  { id: "axis",       name: "Axis",         thumbnailUrl: CC_EMBOSS_THUMB("axis.png"),          availableSizes: ["1200x2400"], panelRows: 6 },
+  { id: "square_30",  name: "Square 30",    thumbnailUrl: CC_EMBOSS_THUMB("square_30.png"),    availableSizes: ["1200x2400"], panelRows: 6 },
+  { id: "deck",       name: "Deck",         thumbnailUrl: CC_EMBOSS_THUMB("deck.png"),          availableSizes: ["1200x2400"], panelRows: 6 },
+  { id: "triangle",   name: "Triangle",     thumbnailUrl: CC_EMBOSS_THUMB("triangle.png"),      availableSizes: ["1200x2400"], panelRows: 6 },
+  { id: "square_8",   name: "Square 8",     thumbnailUrl: CC_EMBOSS_THUMB("square_8.png"),     availableSizes: ["1200x2400"], panelRows: 6 },
+  { id: "symmetric",  name: "Symmetric",    thumbnailUrl: CC_EMBOSS_THUMB("symmetric.png"),    availableSizes: ["1200x2400"], panelRows: 6 },
+  { id: "alter_flute",name: "Alter Flute",  thumbnailUrl: CC_EMBOSS_THUMB("afterflute.png"),  availableSizes: ["1200x2800"], excludedThicknesses: ALTER_FLUTE_EXCLUDED_THICKNESSES },
+  { id: "bloom",      name: "Bloom",        thumbnailUrl: CC_EMBOSS_THUMB("bloom.png"),        availableSizes: ["1200x2800"] },
+  { id: "drift",      name: "Drift",        thumbnailUrl: CC_EMBOSS_THUMB("drift.png"),        availableSizes: ["1200x2800"] },
+  { id: "shard",      name: "Shard",        thumbnailUrl: CC_EMBOSS_THUMB("shard.png"),        availableSizes: ["1200x2800"] },
+  { id: "weave",      name: "Weave",        thumbnailUrl: CC_EMBOSS_THUMB("weave.png"),        availableSizes: ["1200x2800"] },
+  { id: "penray",     name: "Penray",       thumbnailUrl: CC_EMBOSS_THUMB("penray.png"),       availableSizes: ["1200x2800"] },
 ];
 
 export const getColorCoreEmbossUrl = (structureId, embossId, colorId) =>
@@ -670,7 +723,7 @@ export const OMBRE_COLOR_CORE_EMBOSS_PATTERNS = [
   { id: "ribbed_45mm", name: "Ribbed 45mm", suffix: "Ribbed 45mm", thumbnailUrl: OMBRE_EMBOSS_THUMB("ribbed_45mm.png"), availableSizes: ["1200x2400", "1200x2800"] },
   { id: "ribbed_60mm", name: "Ribbed 60mm", suffix: "Ribbed 60mm", thumbnailUrl: OMBRE_EMBOSS_THUMB("ribbed_60mm.png"), availableSizes: ["1200x2400", "1200x2800"] },
   { id: "ribbed_duo",  name: "Ribbed Duo",  suffix: "Ribbed Duo",  thumbnailUrl: OMBRE_EMBOSS_THUMB("ribbed_duo.png"),  availableSizes: ["1200x2400", "1200x2800"] },
-  { id: "tappered",   name: "Tappered",    suffix: "Tappered",    thumbnailUrl: OMBRE_EMBOSS_THUMB("tappered.png"),    availableSizes: ["1200x2400", "1200x2800"] },
+  { id: "tappered",   name: "Tapered",     suffix: "Tappered",    thumbnailUrl: OMBRE_EMBOSS_THUMB("tappered.png"),    availableSizes: ["1200x2400", "1200x2800"] },
 ];
 
 /** Derives emboss panel URL from the selected overlay filename + emboss pattern.
@@ -701,12 +754,12 @@ export const OMBRE_COLOR_CORE_GROOVE_PATTERNS = [
 ];
 
 /** Derives groove panel URL from the selected overlay filename + groove pattern.
- * Disk layout: groove/{PATTERN_UPPER}/{PATTERN_UPPER}_Ombre-{hex}-{overlay}_{size}.jpg
- * e.g. groove/AQUALINE/AQUALINE_Ombre-#641e16-Apricot_1200x2800.jpg */
+ * Disk layout: groove/{PATTERN_UPPER}/{PATTERN_UPPER}_Ombre-{hex}-{overlay}_{size}.png
+ * e.g. groove/AQUALINE/AQUALINE_Ombre-#641e16-Apricot_1200x2800.png */
 export const getOmbreGroovePanelUrl = (pattern, overlayFilename) => {
   const base = overlayFilename.replace(/\.[^.]+$/, ""); // strip extension
   const folderName = pattern.id.toUpperCase(); // e.g. "AQUALINE"
-  const filename = `${folderName}_${base}.jpg`; // e.g. "AQUALINE_Ombre-#641e16-Apricot_1200x2800.jpg"
+  const filename = `${folderName}_${base}.png`; // e.g. "AQUALINE_Ombre-#641e16-Apricot_1200x2800.png"
   return `${BACKEND_URL}/static/images/ombre/color-core-ombre/groove/${folderName}/${encodeURIComponent(filename)}`;
 };
 
@@ -859,38 +912,45 @@ export const DESIGNER_TEXTILE_THICKNESSES = [
  * availableSizes gates which patterns are clickable for a given size selection.
  * Thumbnails live at: designer_textile/emboss_thumbnails/{id}.png
  */
-// Emboss patterns for Designer Textile, keyed by size gate:
-//   Large tall  (1200x2800, 1200x2400) : ribbed family, elliptera, ellipsia, flux, draft, aqualine, tapered, weave, bloom, afterflute, penray, shard
-//   Large square (1200x2400 only)      : + axis, square_8, square_30, deck, triangle, symmetric
-//   Small square (600x600)             : axis, square_8, square_30, deck, triangle
+// Emboss patterns for Designer Textile, split strictly by size — the same
+// split applies to Colour Core above.  A pattern belongs to exactly one size;
+// the two sets never overlap:
+//   1200x2800 : the 15 "3D" patterns  — ribbed family, elliptera, ellipsia,
+//               flux ribbed, drift, aqualine, tapered, weave, bloom,
+//               alter flute, penray, shard
+//   1200x2400 : the 6 "mosaic" patterns — axis, deck, square_8, square_30,
+//               symmetric, triangle
+//
+// The 600-series sizes carry NO emboss patterns at all: the mosaic patterns
+// used to be offered at 600x600 and 600x1200, so those sizes now fall out of
+// the Size dropdown on the Embossed surface entirely
+// (getAvailableSizesForSurface unions these arrays to build it).
 const DT_EMBOSS_THUMB = EMBOSS_THUMB;
 
-//   Small tall   (600x1200)            : axis, square_8, square_30, deck, triangle, symmetric
 export const DESIGNER_TEXTILE_EMBOSS_PATTERNS = [
-  // ── Large-size-only patterns (1200x2800 & 1200x2400) ─────────────────────
-  { id: "ribbed_25mm", name: "Ribbed 25mm",  filenameSuffix: "Ribbed 25mm",  thumbnailUrl: DT_EMBOSS_THUMB("ribbed_25mm.png"),  availableSizes: ["1200x2800", "1200x2400"] },
-  { id: "ribbed_45mm", name: "Ribbed 45mm",  filenameSuffix: "Ribbed 45mm",  thumbnailUrl: DT_EMBOSS_THUMB("ribbed_45mm.png"),  availableSizes: ["1200x2800", "1200x2400"] },
-  { id: "ribbed_60mm", name: "Ribbed 60mm",  filenameSuffix: "Ribbed 60mm",  thumbnailUrl: DT_EMBOSS_THUMB("ribbed_60mm.png"),  availableSizes: ["1200x2800", "1200x2400"] },
-  { id: "ribbed_duo",  name: "Ribbed Duo",   filenameSuffix: "Ribbed Duo",   thumbnailUrl: DT_EMBOSS_THUMB("ribbed_duo.png"),   availableSizes: ["1200x2800", "1200x2400"] },
-  { id: "elliptera",   name: "Elliptera",    filenameSuffix: "Elliptera",    thumbnailUrl: DT_EMBOSS_THUMB("elliptera.png"),    availableSizes: ["1200x2800", "1200x2400"] },
-  { id: "ellipsia",    name: "Ellipsia",     filenameSuffix: "Ellipsia",     thumbnailUrl: DT_EMBOSS_THUMB("ellipsia.png"),     availableSizes: ["1200x2800", "1200x2400"] },
-  { id: "flux_ribbed", name: "Flux Ribbed",  filenameSuffix: "Flux Ribbed",  thumbnailUrl: DT_EMBOSS_THUMB("flux_ribbed.png"),  availableSizes: ["1200x2800", "1200x2400"] },
-  { id: "drift",       name: "Drift",        filenameSuffix: "Drift",        thumbnailUrl: DT_EMBOSS_THUMB("drift.png"),        availableSizes: ["1200x2800", "1200x2400"] },
-  { id: "aqualine",    name: "Aqualine",     filenameSuffix: "Aqualine",     thumbnailUrl: DT_EMBOSS_THUMB("aqualine.png"),     availableSizes: ["1200x2800", "1200x2400"] },
-  { id: "tappered",    name: "Tapered",      filenameSuffix: "Tappered",     thumbnailUrl: DT_EMBOSS_THUMB("tappered.png"),     availableSizes: ["1200x2800", "1200x2400"] },
-  { id: "weave",       name: "Weave",        filenameSuffix: "Weave",        thumbnailUrl: DT_EMBOSS_THUMB("weave.png"),        availableSizes: ["1200x2800", "1200x2400"] },
-  { id: "bloom",       name: "Bloom",        filenameSuffix: "Bloom",        thumbnailUrl: DT_EMBOSS_THUMB("bloom.png"),        availableSizes: ["1200x2800", "1200x2400"] },
-  { id: "afterflute",  name: "Afterflute",   filenameSuffix: "Afterflute",   thumbnailUrl: DT_EMBOSS_THUMB("afterflute.png"),   availableSizes: ["1200x2800", "1200x2400"] },
-  { id: "penray",      name: "Penray",       filenameSuffix: "Penray",       thumbnailUrl: DT_EMBOSS_THUMB("penray.png"),       availableSizes: ["1200x2800", "1200x2400"] },
-  { id: "shard",       name: "Shard",        filenameSuffix: "Shard",        thumbnailUrl: DT_EMBOSS_THUMB("shard.png"),        availableSizes: ["1200x2800", "1200x2400"] },
-  // ── Tile/grid patterns — available on smaller sizes too ───────────────────
-  { id: "axis",        name: "Axis",         filenameSuffix: "Axis",         thumbnailUrl: DT_EMBOSS_THUMB("axis.png"),         availableSizes: ["1200x2400", "600x600", "600x1200"], panelRows: 6 },
-  { id: "square_8",    name: "Square 8",     filenameSuffix: "Square 8",     thumbnailUrl: DT_EMBOSS_THUMB("square_8.png"),     availableSizes: ["1200x2400", "600x600", "600x1200"], panelRows: 6 },
-  { id: "square_30",   name: "Square 30",    filenameSuffix: "Square 30",    thumbnailUrl: DT_EMBOSS_THUMB("square_30.png"),    availableSizes: ["1200x2400", "600x600", "600x1200"], panelRows: 6 },
-  { id: "deck",        name: "Deck",         filenameSuffix: "Deck",         thumbnailUrl: DT_EMBOSS_THUMB("deck.png"),         availableSizes: ["1200x2400", "600x600", "600x1200"], panelRows: 6 },
-  { id: "triangle",    name: "Triangle",     filenameSuffix: "Triangle",     thumbnailUrl: DT_EMBOSS_THUMB("triangle.png"),     availableSizes: ["1200x2400", "600x600", "600x1200"], panelRows: 6 },
-  // symmetric: not available for 600x600
-  { id: "symmetric",   name: "Symmetric",    filenameSuffix: "Symmetric",    thumbnailUrl: DT_EMBOSS_THUMB("symmetric.png"),    availableSizes: ["1200x2400", "600x1200"],            panelRows: 6 },
+  // ── 3D patterns — 1200x2800 only ─────────────────────────────────────────
+  { id: "ribbed_25mm", name: "Ribbed 25mm",  filenameSuffix: "Ribbed 25mm",  thumbnailUrl: DT_EMBOSS_THUMB("ribbed_25mm.png"),  availableSizes: ["1200x2800"] },
+  { id: "ribbed_45mm", name: "Ribbed 45mm",  filenameSuffix: "Ribbed 45mm",  thumbnailUrl: DT_EMBOSS_THUMB("ribbed_45mm.png"),  availableSizes: ["1200x2800"] },
+  { id: "ribbed_60mm", name: "Ribbed 60mm",  filenameSuffix: "Ribbed 60mm",  thumbnailUrl: DT_EMBOSS_THUMB("ribbed_60mm.png"),  availableSizes: ["1200x2800"] },
+  { id: "ribbed_duo",  name: "Ribbed Duo",   filenameSuffix: "Ribbed Duo",   thumbnailUrl: DT_EMBOSS_THUMB("ribbed_duo.png"),   availableSizes: ["1200x2800"] },
+  { id: "elliptera",   name: "Elliptera",    filenameSuffix: "Elliptera",    thumbnailUrl: DT_EMBOSS_THUMB("elliptera.png"),    availableSizes: ["1200x2800"] },
+  { id: "ellipsia",    name: "Ellipsia",     filenameSuffix: "Ellipsia",     thumbnailUrl: DT_EMBOSS_THUMB("ellipsia.png"),     availableSizes: ["1200x2800"] },
+  { id: "flux_ribbed", name: "Flux Ribbed",  filenameSuffix: "Flux Ribbed",  thumbnailUrl: DT_EMBOSS_THUMB("flux_ribbed.png"),  availableSizes: ["1200x2800"] },
+  { id: "drift",       name: "Drift",        filenameSuffix: "Drift",        thumbnailUrl: DT_EMBOSS_THUMB("drift.png"),        availableSizes: ["1200x2800"] },
+  { id: "aqualine",    name: "Aqualine",     filenameSuffix: "Aqualine",     thumbnailUrl: DT_EMBOSS_THUMB("aqualine.png"),     availableSizes: ["1200x2800"] },
+  { id: "tappered",    name: "Tapered",      filenameSuffix: "Tappered",     thumbnailUrl: DT_EMBOSS_THUMB("tappered.png"),     availableSizes: ["1200x2800"] },
+  { id: "weave",       name: "Weave",        filenameSuffix: "Weave",        thumbnailUrl: DT_EMBOSS_THUMB("weave.png"),        availableSizes: ["1200x2800"] },
+  { id: "bloom",       name: "Bloom",        filenameSuffix: "Bloom",        thumbnailUrl: DT_EMBOSS_THUMB("bloom.png"),        availableSizes: ["1200x2800"] },
+  { id: "alterflute",  name: "Alter Flute",  filenameSuffix: "Alterflute",   thumbnailUrl: DT_EMBOSS_THUMB("afterflute.png"),   availableSizes: ["1200x2800"], excludedThicknesses: ALTER_FLUTE_EXCLUDED_THICKNESSES },
+  { id: "penray",      name: "Penray",       filenameSuffix: "Penray",       thumbnailUrl: DT_EMBOSS_THUMB("penray.png"),       availableSizes: ["1200x2800"] },
+  { id: "shard",       name: "Shard",        filenameSuffix: "Shard",        thumbnailUrl: DT_EMBOSS_THUMB("shard.png"),        availableSizes: ["1200x2800"] },
+  // ── Mosaic patterns — 1200x2400 only ─────────────────────────────────────
+  { id: "axis",        name: "Axis",         filenameSuffix: "Axis",         thumbnailUrl: DT_EMBOSS_THUMB("axis.png"),         availableSizes: ["1200x2400"], panelRows: 6 },
+  { id: "square_8",    name: "Square 8",     filenameSuffix: "Square 8",     thumbnailUrl: DT_EMBOSS_THUMB("square_8.png"),     availableSizes: ["1200x2400"], panelRows: 6 },
+  { id: "square_30",   name: "Square 30",    filenameSuffix: "Square 30",    thumbnailUrl: DT_EMBOSS_THUMB("square_30.png"),    availableSizes: ["1200x2400"], panelRows: 6 },
+  { id: "deck",        name: "Deck",         filenameSuffix: "Deck",         thumbnailUrl: DT_EMBOSS_THUMB("deck.png"),         availableSizes: ["1200x2400"], panelRows: 6 },
+  { id: "triangle",    name: "Triangle",     filenameSuffix: "Triangle",     thumbnailUrl: DT_EMBOSS_THUMB("triangle.png"),     availableSizes: ["1200x2400"], panelRows: 6 },
+  { id: "symmetric",   name: "Symmetric",    filenameSuffix: "Symmetric",    thumbnailUrl: DT_EMBOSS_THUMB("symmetric.png"),    availableSizes: ["1200x2400"],                        panelRows: 6 },
 ];
 
 /**

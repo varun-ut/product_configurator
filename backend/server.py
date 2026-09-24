@@ -1,6 +1,6 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 import os
@@ -13,7 +13,8 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 import json
 import hashlib
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from html import escape as _h  # HTML-attribute / body escaping for admin dashboard
 from chat_knowledge import SYSTEM_PROMPT
 
 # Python 3.14 introduced a strict assertion in _SelectorSocketTransport._write_send()
@@ -1957,6 +1958,7 @@ def generate_mock_products():
                 "texture_urls": [
                     "/static/images/flat-embossed-vmt/panels/vmd-nature-reimagined/NA-NE-01_PanelA.jpg",
                     "/static/images/flat-embossed-vmt/panels/vmd-nature-reimagined/NA-NE-01_PanelB.jpg",
+                    "/static/images/flat-embossed-vmt/panels/vmd-nature-reimagined/NA-NE-01_PanelA.jpg",
                 ],
                 "color_name": "NA-NE-01",
             },
@@ -1968,6 +1970,7 @@ def generate_mock_products():
                 "texture_urls": [
                     "/static/images/flat-embossed-vmt/panels/vmd-nature-reimagined/NA-NE-02_PanelA.jpg",
                     "/static/images/flat-embossed-vmt/panels/vmd-nature-reimagined/NA-NE-02_PanelB.jpg",
+                    "/static/images/flat-embossed-vmt/panels/vmd-nature-reimagined/NA-NE-02_PanelA.jpg",
                 ],
                 "color_name": "NA-NE-02",
             },
@@ -2468,9 +2471,17 @@ async def get_product_specs(product_id: str):
 
 # ── Chat endpoint ────────────────────────────────────────────────────────────
 
-# Pricing for claude-haiku-4-5-20251001 — verify at https://www.anthropic.com/pricing
-_PRICE_INPUT_PER_MTOK  = 0.80   # USD per 1M input tokens
-_PRICE_OUTPUT_PER_MTOK = 4.00   # USD per 1M output tokens
+# Chat runs on Gemini.  It was Claude Haiku until the Anthropic key lapsed;
+# the Wall Visualizer below is still on Anthropic and still down for the same
+# reason — moving it is a separate job (vision + strict JSON).
+#
+# Model is env-driven so it can be changed on the server without a redeploy.
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+
+# USD per 1M tokens — verify at https://ai.google.dev/gemini-api/docs/pricing
+# when changing GEMINI_MODEL, or the cost figures in the chat logs drift.
+_PRICE_INPUT_PER_MTOK  = 0.30
+_PRICE_OUTPUT_PER_MTOK = 2.50
 
 class ChatMessage(BaseModel):
     role: str
@@ -2673,7 +2684,7 @@ async def chat(request: ChatRequest, req: Request):
     if not _check_rate_limit(client_ip):
         raise HTTPException(status_code=429, detail="Too many requests — please wait a moment.")
 
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         raise HTTPException(status_code=503, detail="Chat assistant is not configured.")
 
@@ -2686,27 +2697,60 @@ async def chat(request: ChatRequest, req: Request):
             raise HTTPException(status_code=400, detail="Invalid message role.")
 
     try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=api_key)
+        from google import genai
+        from google.genai import types
+        client = genai.Client(api_key=api_key)
 
-        messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
+        # Gemini names the assistant turn "model", not "assistant".  The role
+        # values themselves are already whitelisted above.
+        contents = [
+            types.Content(
+                role="model" if msg.role == "assistant" else "user",
+                parts=[types.Part(text=msg.content)],
+            )
+            for msg in request.messages
+        ]
+
         _t0 = time.time()
-        response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=1024,
-            system=SYSTEM_PROMPT,
-            messages=messages,
+        response = client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=contents,
+            config=types.GenerateContentConfig(
+                system_instruction=SYSTEM_PROMPT,
+                max_output_tokens=1024,
+                # 2.5-series models reason before answering and bill that
+                # thinking against max_output_tokens.  Left on, a long think
+                # can consume the whole 1024 budget and return an EMPTY reply.
+                # A product FAQ bot doesn't need it — off is faster, cheaper
+                # and removes that failure mode entirely.
+                thinking_config=types.ThinkingConfig(thinking_budget=0),
+            ),
         )
         duration_ms = int((time.time() - _t0) * 1000)
 
-        usage = response.usage
-        input_tok  = usage.input_tokens
-        output_tok = usage.output_tokens
+        usage = response.usage_metadata
+        input_tok  = getattr(usage, "prompt_token_count", 0) or 0
+        output_tok = getattr(usage, "candidates_token_count", 0) or 0
         cost_usd   = (input_tok * _PRICE_INPUT_PER_MTOK + output_tok * _PRICE_OUTPUT_PER_MTOK) / 1_000_000
+
+        # `.text` is None when the answer was cut short or filtered, rather
+        # than raising — surface why instead of returning an empty bubble.
+        reply = (response.text or "").strip()
+        if not reply:
+            finish = None
+            if response.candidates:
+                finish = getattr(response.candidates[0], "finish_reason", None)
+            logger.warning(f"Chat produced no text (finish_reason={finish})")
+            if str(finish).upper().endswith("SAFETY"):
+                raise HTTPException(
+                    status_code=400,
+                    detail="I can't answer that one — please try rephrasing.",
+                )
+            raise HTTPException(status_code=500, detail="Chat service error — please try again.")
 
         log_entry = {
             "ts":            datetime.now(timezone.utc).isoformat(),
-            "model":         "claude-haiku-4-5-20251001",
+            "model":         GEMINI_MODEL,
             "input_tokens":  input_tok,
             "output_tokens": output_tok,
             "cost_usd":      round(cost_usd, 6),
@@ -2718,16 +2762,1424 @@ async def chat(request: ChatRequest, req: Request):
             _lf.write(json.dumps(log_entry) + "\n")
 
         logger.info(
-            f"Chat | in={input_tok} out={output_tok} "
+            f"Chat | model={GEMINI_MODEL} in={input_tok} out={output_tok} "
             f"cost=${cost_usd:.6f} duration={duration_ms}ms"
         )
-        return {"reply": response.content[0].text}
+        return {"reply": reply}
+    except HTTPException:
+        raise
     except Exception as e:
         err_str = str(e)
-        logger.error(f"Anthropic chat error: {e}")
-        if "429" in err_str or "rate_limit" in err_str.lower() or "overloaded" in err_str.lower():
+        logger.error(f"Gemini chat error: {e}")
+        low = err_str.lower()
+        if "429" in err_str or "resource_exhausted" in low or "quota" in low or "rate" in low:
             raise HTTPException(status_code=429, detail="The assistant is busy — please try again in a moment.")
+        if "api key" in low or "permission" in low or "401" in err_str or "403" in err_str:
+            # Config problem, not a user problem — 503 keeps it out of the
+            # "user did something wrong" bucket in the logs.
+            raise HTTPException(status_code=503, detail="Chat assistant is not configured.")
         raise HTTPException(status_code=500, detail="Chat service error — please try again.")
+
+
+# ── Analytics: POST /api/events (replaces PostHog) ───────────────────────────
+# Batches of events are POSTed by the frontend analytics layer (see
+# frontend/src/lib/analytics.js). The endpoint writes them to a local
+# SQLite DB (analytics.db). Anonymous by design — no auth required, but
+# we capture User-Agent server-side and the client provides a stable
+# anon_id (persisted in their localStorage) so sessions can be stitched
+# for analysis without ever knowing who the visitor is.
+import analytics_db  # noqa: E402
+import geoip_lookup  # noqa: E402  — offline IP→geo resolver (safe if DB absent)
+
+
+def _client_ip(request: Request) -> Optional[str]:
+    """Best-effort real client IP.
+
+    nginx (the only proxy in front — no load balancer) sets
+    `X-Real-IP: $remote_addr`, i.e. the actual socket peer = the visitor, and
+    overwrites any client-supplied value, so it can't be spoofed. Prefer it.
+
+    Fallback to the LAST entry of X-Forwarded-For: with nginx's
+    `$proxy_add_x_forwarded_for`, the real client IP is the hop nginx appended
+    (last), while any earlier entries could be attacker-supplied. Finally fall
+    back to the socket peer (only meaningful when not behind a proxy).
+    """
+    xri = request.headers.get("x-real-ip")
+    if xri and xri.strip():
+        return xri.strip()
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        parts = [p.strip() for p in xff.split(",") if p.strip()]
+        if parts:
+            return parts[-1]
+    return request.client.host if request.client else None
+
+
+class _AnalyticsEvent(BaseModel):
+    event_name: str
+    anon_id: str
+    session_id: str
+    user_id: Optional[str] = None
+    properties: Optional[dict] = None
+    url: Optional[str] = None
+    client_ts: Optional[int] = None
+
+class _AnalyticsBatch(BaseModel):
+    events: List[_AnalyticsEvent]
+
+@api_router.post("/events", status_code=204)
+async def post_events(batch: _AnalyticsBatch, request: Request):
+    ua = request.headers.get("user-agent", "")
+    # Resolve geo ONCE per request: every event in the batch comes from the
+    # same browser, so they share one IP. The IP is used only here and never
+    # stored or logged — only the derived country/region/city are persisted.
+    # lookup() never raises, so a geo failure can't break event capture.
+    country, region, city = geoip_lookup.lookup(_client_ip(request))
+
+    # Professional role: read from the user's ACCOUNT (auth.db), not from the
+    # client payload, so it can't be spoofed and stays correct across devices
+    # and re-logins. One query per batch covering every distinct user_id in it
+    # (usually exactly one). Anonymous events simply get None.
+    # Imported locally: `auth` is imported at the bottom of this module, after
+    # the app is defined, so it isn't available at module scope up here.
+    try:
+        from auth import get_profiles_for_user_ids
+        profiles = get_profiles_for_user_ids([ev.user_id for ev in batch.events])
+    except Exception as e:
+        logger.warning(f"profile lookup failed, events will record no profile: {e!r}")
+        profiles = {}
+
+    rows = []
+    for ev in batch.events:
+        row = ev.model_dump()
+        # Server-trusted UA; client can't spoof what we record here.
+        row["user_agent"] = ua
+        row["country"] = country
+        row["region"] = region
+        row["city"] = city
+        row["profile"] = profiles.get(str(ev.user_id)) if ev.user_id else None
+        rows.append(row)
+    try:
+        analytics_db.insert_events(rows)
+    except Exception as e:
+        # Don't fail the request — analytics shouldn't block users. Log and
+        # return 204 anyway.
+        logger.error(f"analytics insert failed: {e}")
+    return None
+
+
+# ── Analytics data export: GET /api/admin/analytics/export ──────────────────
+# Machine-readable JSON feed of the raw analytics event store, for the central
+# analytics web app to ingest. It exposes the same rows the admin dashboard is
+# built from, but as structured JSON instead of HTML.
+#
+# Auth — the token may be supplied either as `?key=<token>` or as an
+#   `Authorization: Bearer <token>` header. Two env vars are accepted:
+#     ADMIN_TOKEN             — the existing full-admin token (also unlocks the
+#                               HTML dashboard + per-user PII views)
+#     ANALYTICS_EXPORT_TOKEN  — optional export-only token; set this and hand it
+#                               to the other app so it can pull data without
+#                               holding the full-admin token (independent
+#                               rotation, least privilege).
+#   If NEITHER is configured the route 404s, so a misconfigured deploy can't
+#   silently leak the whole event store.
+#
+# Pagination — incremental by the monotonic autoincrement `id` (stable; two
+# events can share a server_ts, ids never tie). The consumer pages forward:
+#     1. GET …/export?key=…                    → first page (since_id defaults 0)
+#     2. read pagination.next_since_id
+#     3. GET …/export?key=…&since_id=<that>    → next page
+#     4. repeat while pagination.has_more is true
+#   Storing the last next_since_id and re-requesting later pulls ONLY new
+#   events — that's how the central app does both the initial full backfill and
+#   cheap ongoing syncs. `meta.max_id` is the snapshot boundary at query time.
+
+def _resolve_export_token(key: str, request: Request) -> None:
+    """Shared auth gate for the export endpoint. Raises 404 when unconfigured,
+    401 on mismatch; returns None when the caller is authorised."""
+    admin_token = os.environ.get("ADMIN_TOKEN", "")
+    export_token = os.environ.get("ANALYTICS_EXPORT_TOKEN", "")
+    valid_tokens = {t for t in (admin_token, export_token) if t}
+    if not valid_tokens:
+        # Neither token configured — behave exactly like the dashboard does
+        # when ADMIN_TOKEN is unset: pretend the route doesn't exist.
+        raise HTTPException(status_code=404, detail="Not found")
+    supplied = key
+    if not supplied:
+        auth = request.headers.get("authorization", "")
+        if auth.lower().startswith("bearer "):
+            supplied = auth[7:].strip()
+    if supplied not in valid_tokens:
+        raise HTTPException(status_code=401, detail="Bad key")
+
+
+@api_router.get("/admin/analytics/export")
+async def export_analytics(
+    request: Request,
+    key: str = "",
+    since_id: int = 0,
+    limit: int = 1000,
+):
+    _resolve_export_token(key, request)
+
+    events = analytics_db.fetch_events_after(since_id=since_id, limit=limit)
+    store = analytics_db.stats()
+
+    # ISO-8601 UTC alongside the raw epoch-ms, so a consumer doesn't have to
+    # know the unit. server_ts is the authoritative, server-assigned time.
+    for e in events:
+        ts = e.get("server_ts")
+        e["server_ts_iso"] = (
+            datetime.fromtimestamp(ts / 1000, tz=timezone.utc).isoformat()
+            if ts else None
+        )
+
+    last_id = events[-1]["id"] if events else int(since_id)
+    return {
+        "meta": {
+            "schema_version": 1,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "total_events": store["total_events"],
+            "max_id": store["max_id"],
+        },
+        "pagination": {
+            "since_id": max(0, int(since_id)),
+            "limit": max(1, min(int(limit), analytics_db.MAX_EXPORT_LIMIT)),
+            "returned": len(events),
+            "next_since_id": last_id,
+            "has_more": bool(events) and last_id < store["max_id"],
+        },
+        "events": events,
+    }
+
+
+def _render_user_detail(conn, key: str, by_user_id: str = "", by_anon_id: str = "") -> str:
+    """Render the per-user detail page.
+
+    Two modes:
+      - by_user_id: aggregate across all anon_ids tied to this user_id
+        (so a person on two devices appears as one user).
+      - by_anon_id: scope to a single browser/device — used for visitors
+        who never logged in.
+
+    Shows summary (events, sessions, first/last seen, outcomes), a deduped
+    list of configurations they tried (product/category/size/thickness/
+    emboss extracted from event properties), and the full event timeline.
+    """
+    def q(sql, *params):
+        return conn.execute(sql, params).fetchall()
+
+    if by_user_id:
+        where_sql = "user_id = ?"
+        where_arg = by_user_id
+        page_subject = f"User <code>{by_user_id}</code>"
+        # Pull current email (latest user_identified event)
+        email_row = q(
+            "SELECT json_extract(properties, '$.email') FROM events "
+            "WHERE user_id = ? AND event_name = 'user_identified' "
+            "ORDER BY server_ts DESC LIMIT 1", by_user_id,
+        )
+        email = email_row[0][0] if email_row else None
+    elif by_anon_id:
+        where_sql = "anon_id = ?"
+        where_arg = by_anon_id
+        page_subject = f"Anonymous visitor <code>{by_anon_id}</code>"
+        email = None
+    else:
+        return "<p>Bad request: need user= or anon= query param.</p>"
+
+    summary = q(
+        f"""
+        SELECT COUNT(*) AS events,
+               COUNT(DISTINCT session_id) AS sessions,
+               COUNT(DISTINCT anon_id) AS devices,
+               MIN(server_ts) AS first_seen,
+               MAX(server_ts) AS last_seen,
+               MAX(user_id) AS user_id,
+               SUM(CASE WHEN event_name='download_clicked' THEN 1 ELSE 0 END) AS downloads,
+               SUM(CASE WHEN event_name='save_clicked' THEN 1 ELSE 0 END) AS saves,
+               SUM(CASE WHEN event_name='tech_specs_viewed' THEN 1 ELSE 0 END) AS specs,
+               MAX(user_agent) AS ua,
+               -- Professional role from their account, stamped onto each event
+               -- at ingest. MAX() picks the non-NULL value if any event has it.
+               MAX(profile) AS profile
+        FROM events
+        WHERE {where_sql}
+        """, where_arg,
+    )[0]
+
+    if not summary[0]:
+        return f"""<!doctype html><html><body style="font:14px sans-serif;padding:32px">
+        <p>No events found for {page_subject}.</p>
+        <p><a href="?key={key}">&larr; Back to overview</a></p>
+        </body></html>"""
+
+    events, sessions, devices, first_seen, last_seen, uid, dl, sv, specs, ua, profile = summary
+
+    # Slug → display label, mirroring the overview page's By-profile table.
+    _PROFILE_LABELS = {
+        "architect": "Architect",
+        "interior_designer": "Interior Designer",
+        "pmc": "Project Management Consultant",
+        "acoustic_consultant": "Acoustic Consultant",
+        "other": "Other",
+    }
+    profile_label = _PROFILE_LABELS.get(profile, profile) if profile else "Not set"
+
+    # Pull every event for this user/anon; we'll group + count combinations
+    # in Python (small per-user data so simpler than SQL gymnastics).
+    rows = q(
+        f"SELECT server_ts, event_name, session_id, anon_id, properties "
+        f"FROM events WHERE {where_sql} ORDER BY server_ts ASC",
+        where_arg,
+    )
+
+    # Build "configurations tried" — group by (product_type, category, size,
+    # thickness, emboss) extracted from each event's properties JSON.
+    from collections import Counter
+    combos = Counter()
+    for row in rows:
+        props = row[-1]  # properties is last column regardless of select shape
+        if not props:
+            continue
+        try:
+            p = json.loads(props)
+        except Exception:
+            continue
+        if not isinstance(p, dict):
+            continue
+        keys = ("product_type", "category", "size", "thickness", "emboss")
+        combo = tuple((p.get(k) or "—") for k in keys)
+        if any(v != "—" for v in combo):
+            combos[combo] += 1
+
+    # IST formatter to match the main overview dashboard.
+    IST = timezone(timedelta(hours=5, minutes=30))
+    def fmt_ts(ms):
+        return datetime.fromtimestamp(ms / 1000, tz=IST).strftime('%Y-%m-%d %H:%M:%S')
+
+    # Sum-of-session-durations for THIS user, bounded per session so an
+    # idle tab doesn't inflate the total.  Computed in Python over the
+    # already-loaded `rows` list (avoids another DB hit).
+    _session_bounds = {}
+    for row in rows:
+        ts, _name, sid, _aid, _props = row
+        if sid not in _session_bounds:
+            _session_bounds[sid] = [ts, ts]
+        else:
+            if ts > _session_bounds[sid][1]:
+                _session_bounds[sid][1] = ts
+            if ts < _session_bounds[sid][0]:
+                _session_bounds[sid][0] = ts
+    total_user_active_ms = sum(end - start for start, end in _session_bounds.values())
+    def fmt_duration(ms):
+        if ms is None or ms <= 0: return "0:00:00"
+        s = int(ms // 1000); h, r = divmod(s, 3600); m, sec = divmod(r, 60)
+        return f"{h}:{m:02d}:{sec:02d}"
+
+    combo_rows = "".join(
+        f"<tr>"
+        f"<td>{p}</td><td>{c}</td><td>{s}</td><td>{t}</td><td>{e}</td>"
+        f"<td class=num>{n}</td>"
+        f"</tr>"
+        for (p, c, s, t, e), n in combos.most_common(40)
+    )
+
+    def _props_cell_detail(props, name, ts):
+        if not props:
+            return "<td><span class=anon>—</span></td>"
+        ts_str = fmt_ts(ts)
+        return (
+            f'<td class=props-trunc'
+            f' data-props="{_h(props, quote=True)}"'
+            f' data-event="{_h(name, quote=True)}"'
+            f' data-time="{_h(ts_str, quote=True)}"'
+            f' title="Click to view full payload">'
+            f'{_h(props)}'
+            f'</td>'
+        )
+
+    timeline = "".join(
+        f"<tr>"
+        f"<td class=ts>{fmt_ts(ts)}</td>"
+        f"<td>{name}</td>"
+        f"<td class=mono>{sid[:8]}…</td>"
+        f"<td class=mono>{aid[:8]}…</td>"
+        f"{_props_cell_detail(props, name, ts)}"
+        f"</tr>"
+        for ts, name, sid, aid, props in rows
+    )
+
+    if by_user_id:
+        auth_badge = f'<span class=userid>{by_user_id[:8]}…</span> logged-in' + (f' · {email}' if email else '')
+    else:
+        auth_badge = '<span class=anon>anonymous (never logged in)</span>'
+
+    subject_id = by_user_id or by_anon_id
+    return f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>{('User ' if by_user_id else 'Anon ') + subject_id[:8]} — UV Analytics</title>
+<style>
+  *{{box-sizing:border-box}}
+  body{{font:14px -apple-system,Segoe UI,Inter,sans-serif;margin:0;background:#f7f8fa;color:#1f2937}}
+  header{{padding:18px 24px;background:#fff;border-bottom:1px solid #cbd5e1}}
+  header h1{{margin:0;font-size:18px;font-weight:600}}
+  header .crumb{{font-size:12px;color:#6b7280;margin-top:4px}}
+  header .crumb a{{color:#4338ca;text-decoration:none}}
+  header .crumb a:hover{{text-decoration:underline}}
+  .wrap{{padding:0;max-width:none;margin:0}}
+  .cards{{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1px;margin:0;background:#cbd5e1;border-bottom:1px solid #cbd5e1}}
+  .card{{background:#fff;border:0;border-radius:0;padding:16px 18px}}
+  .card .lbl{{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#6b7280}}
+  .card .val{{font-size:22px;font-weight:600;margin-top:4px;color:#0f172a}}
+  section{{background:#fff;border:0;border-bottom:1px solid #cbd5e1;border-radius:0;padding:18px;margin:0}}
+  section h2{{margin:0 0 12px 0;font-size:14px;font-weight:600;color:#0f172a}}
+  table{{width:100%;border-collapse:collapse;font-size:13px}}
+  th,td{{padding:7px 10px;border-bottom:1px solid #f1f5f9;text-align:left;vertical-align:top}}
+  th{{font-weight:500;color:#6b7280;font-size:11px;text-transform:uppercase;letter-spacing:.05em;background:#fafafa}}
+  td.num{{text-align:right;font-variant-numeric:tabular-nums;font-weight:500}}
+  /* Headers of numeric columns must right-align with their values — without
+     this the `th,td{{text-align:left}}` rule above left-aligns the header while
+     td.num right-aligns the number, so on a wide table the two drift to
+     opposite ends of the column and the figures look like they belong to the
+     neighbouring column. */
+  th.num{{text-align:right}}
+  td.ts{{white-space:nowrap;color:#6b7280;font-variant-numeric:tabular-nums}}
+  td.mono{{font-family:ui-monospace,Menlo,Consolas,monospace;color:#6b7280;font-size:12px}}
+  /* Properties cell: same click-to-modal pattern as the main dashboard. */
+  td.props-trunc{{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;color:#374151;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;border-bottom:1px dotted transparent}}
+  td.props-trunc:hover{{background:#f1f5f9;border-bottom-color:#94a3b8}}
+  table.fixed{{table-layout:fixed}}
+  /* Wide-table scroll wrapper, same trick as main dashboard. */
+  .table-scroll{{overflow-x:auto;margin:0 -18px;padding:0 18px;-webkit-overflow-scrolling:touch}}
+  /* Modal — shared markup with the main dashboard */
+  .modal-overlay{{position:fixed;inset:0;background:rgba(15,23,42,0.5);display:none;align-items:center;justify-content:center;z-index:1000;padding:24px}}
+  .modal-overlay.open{{display:flex}}
+  .modal-box{{background:#fff;border-radius:0;width:min(720px,100%);max-height:80vh;display:flex;flex-direction:column;border:1px solid #0f172a;box-shadow:none;overflow:hidden}}
+  .modal-head{{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid #e5e7eb;gap:12px}}
+  .modal-title{{font-size:13px;font-weight:600;color:#0f172a;line-height:1.4;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+  .modal-x{{background:none;border:0;font-size:22px;line-height:1;color:#94a3b8;cursor:pointer;padding:0 6px}}
+  .modal-x:hover{{color:#0f172a}}
+  .modal-body{{flex:1;margin:0;padding:14px 18px;overflow:auto;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.55;color:#1f2937;white-space:pre-wrap;word-break:break-word;background:#fafafa}}
+  .modal-foot{{padding:10px 18px;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:8px;background:#fff}}
+  .modal-btn{{background:#4338ca;color:#fff;border:0;padding:6px 14px;border-radius:0;font-size:12px;font-weight:500;cursor:pointer}}
+  .modal-btn:hover{{background:#3730a3}}
+  .modal-btn.copied{{background:#16a34a}}
+  .userid{{display:inline-block;padding:1px 6px;background:#dcfce7;color:#166534;border-radius:0;font-size:10px}}
+  .anon{{display:inline-block;padding:1px 6px;background:#f3f4f6;color:#6b7280;border-radius:0;font-size:10px}}
+  .pillrow{{display:flex;gap:8px;flex-wrap:wrap}}
+</style></head>
+<body>
+<header>
+  <h1>{('User' if by_user_id else 'Anonymous visitor')} <code style="font-size:14px">{subject_id}</code></h1>
+  <div class="crumb"><a href="?key={key}">&larr; Back to overview</a> &nbsp;·&nbsp; {auth_badge}</div>
+</header>
+<div class="wrap">
+
+  <div class="cards">
+    <div class="card"><div class="lbl">Profile</div><div class="val" style="font-size:15px">{_h(profile_label)}</div></div>
+    <div class="card"><div class="lbl">Total events</div><div class="val">{events:,}</div></div>
+    <div class="card"><div class="lbl">Sessions</div><div class="val">{sessions:,}</div></div>
+    <div class="card"><div class="lbl">Devices</div><div class="val">{devices:,}</div></div>
+    <div class="card"><div class="lbl">Downloads</div><div class="val">{dl:,}</div></div>
+    <div class="card"><div class="lbl">Saves</div><div class="val">{sv:,}</div></div>
+    <div class="card"><div class="lbl">Specs viewed</div><div class="val">{specs:,}</div></div>
+    <div class="card"><div class="lbl">Time on configurator</div><div class="val">{fmt_duration(total_user_active_ms)}</div></div>
+    <div class="card"><div class="lbl">First seen (IST)</div><div class="val" style="font-size:14px">{fmt_ts(first_seen)}</div></div>
+    <div class="card"><div class="lbl">Last seen (IST)</div><div class="val" style="font-size:14px">{fmt_ts(last_seen)}</div></div>
+  </div>
+
+  <section>
+    <h2>Configurations tried &mdash; deduped, sorted by frequency</h2>
+    <div class="table-scroll">
+    <table>
+      <thead><tr>
+        <th>Product</th><th>Category</th><th>Size</th><th>Thickness</th><th>Emboss</th>
+        <th class=num>Events touching this combo</th>
+      </tr></thead>
+      <tbody>{combo_rows or '<tr><td colspan=6><em>No configuration data in this user&apos;s events</em></td></tr>'}</tbody>
+    </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Event timeline ({events:,} events)</h2>
+    <div class="table-scroll">
+    <table class="fixed">
+      <thead><tr>
+        <th style="width:170px">Time (IST)</th>
+        <th style="width:180px">Event</th>
+        <th style="width:90px">Session</th>
+        <th style="width:90px">Anon ID</th>
+        <th>Properties</th>
+      </tr></thead>
+      <tbody>{timeline}</tbody>
+    </table>
+    </div>
+  </section>
+
+</div>
+
+<div id="props-modal" class="modal-overlay" aria-hidden="true" role="dialog">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div id="props-modal-title" class="modal-title"></div>
+      <button class="modal-x" data-modal-close aria-label="Close">&times;</button>
+    </div>
+    <pre id="props-modal-body" class="modal-body"></pre>
+    <div class="modal-foot">
+      <button class="modal-btn" id="props-modal-copy">Copy JSON</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){{
+  var modal = document.getElementById('props-modal');
+  var titleEl = document.getElementById('props-modal-title');
+  var bodyEl = document.getElementById('props-modal-body');
+  var copyBtn = document.getElementById('props-modal-copy');
+  function openModal(props, eventName, eventTime){{
+    var pretty = props;
+    try {{ pretty = JSON.stringify(JSON.parse(props), null, 2); }} catch (e) {{}}
+    titleEl.textContent = eventName + '  ·  ' + eventTime;
+    bodyEl.textContent = pretty;
+    copyBtn.textContent = 'Copy JSON';
+    copyBtn.classList.remove('copied');
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+  }}
+  function closeModal(){{
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+  }}
+  document.addEventListener('click', function(e){{
+    var cell = e.target.closest('.props-trunc');
+    if (cell) {{
+      openModal(cell.dataset.props || '', cell.dataset.event || '', cell.dataset.time || '');
+      return;
+    }}
+    if (e.target.matches('[data-modal-close]') || e.target === modal) {{
+      closeModal();
+    }}
+  }});
+  document.addEventListener('keydown', function(e){{
+    if (e.key === 'Escape' && modal.classList.contains('open')) closeModal();
+  }});
+  copyBtn.addEventListener('click', function(){{
+    var text = bodyEl.textContent;
+    if (!navigator.clipboard) return;
+    navigator.clipboard.writeText(text).then(function(){{
+      copyBtn.textContent = 'Copied';
+      copyBtn.classList.add('copied');
+      setTimeout(function(){{
+        copyBtn.textContent = 'Copy JSON';
+        copyBtn.classList.remove('copied');
+      }}, 1500);
+    }});
+  }});
+}})();
+</script>
+</body></html>"""
+
+
+# ── Analytics admin dashboard: GET /api/admin/analytics?key=… ───────────────
+# Self-contained HTML page that renders top metrics by querying analytics.db
+# directly. Single env var ADMIN_TOKEN gates access; if unset the route 404s
+# so a misconfigured deploy doesn't leak data.
+#
+# Three views via query params:
+#   /api/admin/analytics?key=…             → aggregate overview (default)
+#   /api/admin/analytics?key=…&user=<id>   → per-user-id detail (logged-in user)
+#   /api/admin/analytics?key=…&anon=<id>   → per-anon_id detail (pre-login / never-logged-in)
+#
+# Time window: &days=<n> scopes every windowed section (daily chart, top events,
+# funnel, user tables).  `days=0` is the ALL-TIME view — cutoff drops to 0 so no
+# section is bounded.  The top-row totals have always been all-time regardless.
+@api_router.get("/admin/analytics", response_class=HTMLResponse)
+async def admin_analytics(key: str = "", days: int = 14, user: str = "", anon: str = ""):
+    admin_token = os.environ.get("ADMIN_TOKEN", "")
+    if not admin_token:
+        raise HTTPException(status_code=404, detail="Not found")
+    if key != admin_token:
+        raise HTTPException(status_code=401, detail="Bad key")
+
+    # days=0 → all time. Otherwise clamp to 1..365 (was 90; widened so the
+    # ranges offered in the picker below are all reachable).
+    try:
+        days = int(days)
+    except (TypeError, ValueError):
+        days = 14
+    all_time = days <= 0
+    days = 0 if all_time else min(days, 365)
+    conn = analytics_db.get_conn()
+    # cutoff 0 matches every row (server_ts is always > 0), so the same
+    # `server_ts >= ?` queries below serve both modes without branching.
+    cutoff_ms = 0 if all_time else int((time.time() - days * 86400) * 1000)
+    # Labels reused across every windowed heading/card.
+    win = "all time" if all_time else f"last {days} days"
+    win_short = "all-time" if all_time else f"last {days}d"
+
+    # All timestamps in the dashboard are rendered in IST (Asia/Kolkata,
+    # UTC+5:30) — the team operates out of India and reading UTC adds an
+    # unnecessary mental conversion step.  Server_ts is still stored as
+    # epoch-ms UTC in the database; we only convert at the rendering edge.
+    IST = timezone(timedelta(hours=5, minutes=30))
+
+    def q(sql, *params):
+        return conn.execute(sql, params).fetchall()
+
+    # Duration formatter: ms → "h:mm:ss"  (e.g. 7842000 → "2:10:42")
+    def _fmt_duration(ms):
+        if ms is None or ms <= 0:
+            return "0:00:00"
+        s = int(ms // 1000)
+        h, rem = divmod(s, 3600)
+        m, sec = divmod(rem, 60)
+        return f"{h}:{m:02d}:{sec:02d}"
+
+    # Branch: per-user detail view ----------------------------------------------
+    # ?user=<id> queries logged-in user across all their anon_ids/devices.
+    # ?anon=<id> queries a single browser/device (used for never-logged-in).
+    if user:
+        return _render_user_detail(conn, key, by_user_id=user)
+    if anon:
+        return _render_user_detail(conn, key, by_anon_id=anon)
+    # ---------------------------------------------------------------------------
+
+    total_events = q("SELECT COUNT(*) FROM events")[0][0]
+    total_users = q("SELECT COUNT(DISTINCT anon_id) FROM events")[0][0]
+    total_sessions = q("SELECT COUNT(DISTINCT session_id) FROM events")[0][0]
+    window_events = q("SELECT COUNT(*) FROM events WHERE server_ts >= ?", cutoff_ms)[0][0]
+    window_users = q("SELECT COUNT(DISTINCT anon_id) FROM events WHERE server_ts >= ?", cutoff_ms)[0][0]
+
+    top_events = q(
+        "SELECT event_name, COUNT(*) FROM events WHERE server_ts >= ? "
+        "GROUP BY event_name ORDER BY 2 DESC LIMIT 25",
+        cutoff_ms,
+    )
+
+    outcomes = dict(q(
+        "SELECT event_name, COUNT(DISTINCT anon_id) FROM events "
+        "WHERE event_name IN ('save_clicked','download_clicked','tech_specs_viewed') "
+        "AND server_ts >= ? GROUP BY event_name", cutoff_ms,
+    ))
+
+    daily = q(
+        # Day buckets in IST so the chart matches local calendar.  The
+        # +5 hours / +30 minutes modifiers shift epoch-UTC into IST before
+        # date() truncates to the day boundary.
+        "SELECT date(server_ts/1000, 'unixepoch', '+5 hours', '+30 minutes') AS d, "
+        "       COUNT(*) AS events, COUNT(DISTINCT anon_id) AS users "
+        "FROM events WHERE server_ts >= ? GROUP BY d ORDER BY d ASC",
+        cutoff_ms,
+    )
+
+    # Latest 50 events.  Subquery looks up the email for each user_id from
+    # that user's most recent user_identified event (so a logged-in user's
+    # email is shown alongside every event they fire, not just the
+    # user_identified row itself).  NULL email for events with no user_id.
+    recent = q(
+        """
+        SELECT e.server_ts, e.event_name, e.anon_id, e.session_id, e.user_id, e.properties,
+               (SELECT json_extract(ui.properties, '$.email')
+                  FROM events ui
+                  WHERE ui.user_id = e.user_id
+                    AND ui.event_name = 'user_identified'
+                  ORDER BY ui.server_ts DESC LIMIT 1) AS email
+        FROM events e
+        ORDER BY e.server_ts DESC
+        LIMIT 50
+        """
+    )
+
+    # Total active time across all sessions in the window. We bound each
+    # session's contribution by its first/last event timestamp — so an idle
+    # tab that fires no events doesn't inflate the total. Sessions that have
+    # only one event count as zero duration (correctly: no measurable time
+    # on page).
+    total_active_ms = q(
+        """
+        SELECT COALESCE(SUM(duration_ms), 0) FROM (
+          SELECT MAX(server_ts) - MIN(server_ts) AS duration_ms
+          FROM events
+          WHERE server_ts >= ?
+          GROUP BY session_id
+        )
+        """, cutoff_ms,
+    )[0][0]
+
+    # Per-user total active time across the window, keyed by user_id, summed
+    # over all of that user's sessions. Joined into top_users below.
+    user_active_ms = dict(q(
+        """
+        SELECT user_id, COALESCE(SUM(duration_ms), 0) FROM (
+          SELECT user_id, session_id, MAX(server_ts) - MIN(server_ts) AS duration_ms
+          FROM events
+          WHERE server_ts >= ? AND user_id IS NOT NULL
+          GROUP BY user_id, session_id
+        )
+        GROUP BY user_id
+        """, cutoff_ms,
+    ))
+
+    # Top users by activity in window — grouped by USER_ID (since the
+    # configurator requires login, user_id is the canonical identifier).
+    # email is pulled from the most recent `user_identified` event's
+    # properties JSON. Aggregates across all anon_ids the user has used
+    # (multiple devices / browsers / cleared-cookies sessions).
+    top_users = q(
+        """
+        SELECT events.user_id,
+               (SELECT json_extract(properties, '$.email')
+                  FROM events ui
+                  WHERE ui.user_id = events.user_id
+                    AND ui.event_name = 'user_identified'
+                  ORDER BY ui.server_ts DESC LIMIT 1) AS email,
+               COUNT(*) AS events_n,
+               COUNT(DISTINCT session_id) AS sessions,
+               COUNT(DISTINCT anon_id) AS devices,
+               MIN(server_ts) AS first_seen,
+               MAX(server_ts) AS last_seen,
+               SUM(CASE WHEN event_name='download_clicked' THEN 1 ELSE 0 END) AS downloads,
+               SUM(CASE WHEN event_name='save_clicked' THEN 1 ELSE 0 END) AS saves,
+               SUM(CASE WHEN event_name='tech_specs_viewed' THEN 1 ELSE 0 END) AS specs,
+               MAX(profile) AS profile
+        FROM events
+        WHERE server_ts >= ? AND user_id IS NOT NULL
+        GROUP BY events.user_id
+        ORDER BY events_n DESC
+        LIMIT 30
+        """, cutoff_ms,
+    )
+
+    # Breakdown by professional role (from the user's account, stamped onto
+    # each event at ingest). 'Not set' covers anonymous visitors plus accounts
+    # that skipped the optional field — surfaced explicitly so the numbers
+    # reconcile against the totals above rather than silently omitting them.
+    by_profile = q(
+        """
+        SELECT COALESCE(profile, '—') AS p,
+               COUNT(DISTINCT COALESCE(user_id, anon_id)) AS users,
+               COUNT(*) AS events,
+               SUM(CASE WHEN event_name='download_clicked' THEN 1 ELSE 0 END) AS downloads,
+               SUM(CASE WHEN event_name='save_clicked' THEN 1 ELSE 0 END) AS saves
+        FROM events WHERE server_ts >= ?
+        GROUP BY p ORDER BY users DESC
+        """, cutoff_ms,
+    )
+
+    # Separately, anonymous traffic (anon_ids with no login during the
+    # window). Usually small/empty given login is required — but worth
+    # surfacing so we notice if something's leaking through.
+    anon_users = q(
+        """
+        SELECT anon_id,
+               COUNT(*) AS events_n,
+               COUNT(DISTINCT session_id) AS sessions,
+               MIN(server_ts) AS first_seen,
+               MAX(server_ts) AS last_seen
+        FROM events
+        WHERE server_ts >= ?
+          AND anon_id NOT IN (SELECT DISTINCT anon_id FROM events
+                               WHERE user_id IS NOT NULL AND server_ts >= ?)
+        GROUP BY anon_id
+        ORDER BY events_n DESC
+        LIMIT 20
+        """, cutoff_ms, cutoff_ms,
+    )
+
+    # Pre-format for the template.
+    # SQL's GROUP BY only emits rows for days that actually have events, which
+    # leaves the chart with gaps and a misleading "empty" look when most days
+    # have no traffic. Fill in the full N-day window (in IST, matching the
+    # bucket key the SQL produces) so every day shows on the x-axis — busy
+    # days get tall bars, quiet days get empty bars but still anchor the date.
+    today_ist = datetime.now(IST).date()
+    # In all-time mode `days` is 0, so derive the span from the oldest event.
+    # The bar chart is capped at CHART_MAX_BARS: beyond that the bars are too
+    # thin to read (and the span grows forever as the store fills up), so we
+    # show the most recent N days and say so in the heading. Every OTHER
+    # all-time section remains genuinely unbounded — only this chart is capped.
+    CHART_MAX_BARS = 90
+    chart_truncated = False
+    if all_time:
+        first_ms = q("SELECT MIN(server_ts) FROM events")[0][0]
+        if first_ms:
+            first_date = datetime.fromtimestamp(first_ms / 1000, tz=IST).date()
+            span = (today_ist - first_date).days + 1
+        else:
+            span = 1
+        chart_days = max(1, min(span, CHART_MAX_BARS))
+        chart_truncated = span > CHART_MAX_BARS
+    else:
+        chart_days = days
+    all_days_iso = [(today_ist - timedelta(days=i)).isoformat()
+                    for i in range(chart_days - 1, -1, -1)]
+    events_by_day = {r[0]: (r[1], r[2]) for r in daily}
+    daily_full = [(d, *events_by_day.get(d, (0, 0))) for d in all_days_iso]
+
+    # Compute bar fill heights in pixels rather than percentages — percentages
+    # don't resolve against an indirect-height ancestor and were collapsing
+    # every bar to its min-height. Show the actual event count above each bar
+    # so very small bars (low-traffic days) remain readable.
+    CHART_FILL_MAX_PX = 120  # max bar height in px; leaves room for label + day
+    max_day_events = max((r[1] for r in daily_full), default=1) or 1
+
+    def _bar_html(d, n_events, n_users):
+        if n_events <= 0:
+            fill_h = 0
+        else:
+            fill_h = max(2, round((n_events / max_day_events) * CHART_FILL_MAX_PX))
+        count_label = f'{n_events}' if n_events > 0 else ''
+        return (
+            f'<div class="bar" title="{d}: {n_events} events, {n_users} users">'
+            f'<div class="count">{count_label}</div>'
+            f'<div class="fill" style="height:{fill_h}px"></div>'
+            f'<div class="day">{d[5:]}</div></div>'
+        )
+
+    daily_bars = "".join(_bar_html(r[0], r[1], r[2]) for r in daily_full)
+
+    # Profile slug → human label. Slugs are what the sign-up form submits and
+    # what the DB / exports store; the dashboard shows the friendly name.
+    PROFILE_LABELS = {
+        "architect": "Architect",
+        "interior_designer": "Interior Designer",
+        "pmc": "Project Management Consultant",
+        "acoustic_consultant": "Acoustic Consultant",
+        "other": "Other",
+        "—": "Not set / anonymous",
+    }
+    profile_rows = "".join(
+        f"<tr><td>{_h(PROFILE_LABELS.get(p, p))}</td><td class=num>{u:,}</td>"
+        f"<td class=num>{e:,}</td><td class=num>{d:,}</td><td class=num>{s:,}</td></tr>"
+        for p, u, e, d, s in by_profile
+    )
+
+    # Range picker — each link preserves the admin key and swaps only `days`.
+    # days=0 is the all-time view. The active range gets the `on` class.
+    _RANGES = [(7, "7 days"), (14, "14 days"), (30, "30 days"), (90, "90 days"), (0, "All time")]
+    range_links = "".join(
+        '<a href="?key={k}&days={d}" class="range{on}">{label}</a>'.format(
+            k=key, d=d, label=label,
+            on=" on" if (all_time if d == 0 else (not all_time and days == d)) else "",
+        )
+        for d, label in _RANGES
+    )
+    top_rows = "".join(f"<tr><td>{name}</td><td class=num>{n}</td></tr>" for name, n in top_events)
+    # In the latest-events table, prefer linking by user_id (canonical) when
+    # we know the user, fall back to anon link otherwise.
+    def _link_user(uid):  return f'<a href="?key={key}&user={uid}" class="user">{uid[:8]}…</a>'
+    def _link_anon(aid):  return f'<a href="?key={key}&anon={aid}" class="user">{aid[:8]}…</a>'
+    def _fmt_when(ms):
+        # Render in IST so the dashboard times match local clocks.
+        return datetime.fromtimestamp(ms / 1000, tz=IST).strftime('%Y-%m-%d %H:%M')
+    def _props_cell(props, name, ts):
+        # Empty / null properties → just a dash, no click target.
+        if not props:
+            return "<td><span class=anon>—</span></td>"
+        # Full payload lives in data-props (HTML-attribute-escaped). The
+        # cell's text node is the same payload, also escaped; CSS clips it
+        # to a single line. Click handler at the bottom of the page reads
+        # data-props, JSON.parses it, pretty-prints into a modal.
+        ts_str = datetime.fromtimestamp(ts / 1000, tz=IST).strftime('%Y-%m-%d %H:%M:%S')
+        return (
+            f'<td class=props-trunc'
+            f' data-props="{_h(props, quote=True)}"'
+            f' data-event="{_h(name, quote=True)}"'
+            f' data-time="{_h(ts_str, quote=True)}"'
+            f' title="Click to view full payload">'
+            f'{_h(props)}'
+            f'</td>'
+        )
+
+    recent_rows = "".join(
+        f"<tr>"
+        f"<td class=ts>{datetime.fromtimestamp(ts / 1000, tz=IST).strftime('%Y-%m-%d %H:%M:%S')}</td>"
+        f"<td>{name}</td>"
+        f"<td class=mono>{_link_user(uid) if uid else _link_anon(anon)}</td>"
+        # Email column — resolved from the most recent user_identified event
+        # for this user_id (NULL when the event isn't tied to a logged-in user).
+        f"<td>{email or '<span class=anon>—</span>'}</td>"
+        f"<td class=mono>{sid[:8]}…</td>"
+        f"{_props_cell(props, name, ts)}"
+        f"</tr>"
+        for ts, name, anon, sid, uid, props, email in recent
+    )
+    # Top logged-in users table — keyed by user_id, shows email + time spent.
+    user_rows = "".join(
+        f"<tr>"
+        f"<td class=mono>{_link_user(uid)}</td>"
+        f"<td>{email or '<span class=anon>(no email)</span>'}</td>"
+        f"<td>{_h(PROFILE_LABELS.get(prof, prof)) if prof else '<span class=anon>—</span>'}</td>"
+        f"<td class=num>{evt:,}</td>"
+        f"<td class=num>{sess:,}</td>"
+        f"<td class=num>{dev:,}</td>"
+        f"<td class=num>{dl}</td>"
+        f"<td class=num>{sv}</td>"
+        f"<td class=num>{sp}</td>"
+        f"<td class=num>{_fmt_duration(user_active_ms.get(uid, 0))}</td>"
+        f"<td class=ts>{_fmt_when(first)}</td>"
+        f"<td class=ts>{_fmt_when(last)}</td>"
+        f"</tr>"
+        for uid, email, evt, sess, dev, first, last, dl, sv, sp, prof in top_users
+    )
+    # Anonymous-traffic table (no login during window).
+    anon_rows = "".join(
+        f"<tr>"
+        f"<td class=mono>{_link_anon(aid)}</td>"
+        f"<td class=num>{evt:,}</td>"
+        f"<td class=num>{sess:,}</td>"
+        f"<td class=ts>{_fmt_when(first)}</td>"
+        f"<td class=ts>{_fmt_when(last)}</td>"
+        f"</tr>"
+        for aid, evt, sess, first, last in anon_users
+    )
+
+    def card(label, value):
+        return f'<div class="card"><div class="lbl">{label}</div><div class="val">{value:,}</div></div>'
+
+    # Variant for non-numeric (duration) cards so we don't try to comma-
+    # format a string like "2:14:08".
+    def card_raw(label, value):
+        return f'<div class="card"><div class="lbl">{label}</div><div class="val">{value}</div></div>'
+
+    html = f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>UV Analytics</title>
+<style>
+  *{{box-sizing:border-box}}
+  body{{font:14px -apple-system,Segoe UI,Inter,sans-serif;margin:0;background:#f7f8fa;color:#1f2937}}
+  header{{padding:18px 24px;background:#fff;border-bottom:1px solid #cbd5e1;display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:12px}}
+  header h1{{margin:0;font-size:18px;font-weight:600}}
+  header .meta{{font-size:12px;color:#6b7280}}
+  .wrap{{padding:0;max-width:none;margin:0}}
+  /* Sticky side TOC — visible on wider screens, hidden on mobile so it
+     doesn't crowd the data tables. Smooth-scrolls to each section. */
+  nav.toc{{position:sticky;top:0;z-index:10;display:flex;flex-wrap:wrap;align-items:stretch;background:#fff;border-bottom:1px solid #cbd5e1;font-size:12.5px}}
+  nav.toc .lbl{{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#9ca3af;display:flex;align-items:center;padding:0 14px;border-right:1px solid #e5e7eb}}
+  nav.toc a{{display:flex;align-items:center;padding:9px 14px;color:#4b5563;text-decoration:none;border-right:1px solid #e5e7eb;line-height:1;border-bottom:2px solid transparent}}
+  nav.toc a:hover{{background:#f1f5f9;color:#0f172a;border-bottom-color:#4f46e5}}
+  html{{scroll-behavior:smooth}}
+  section{{scroll-margin-top:24px}}
+  .cards{{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1px;margin:0;background:#cbd5e1;border-bottom:1px solid #cbd5e1}}
+  .card{{background:#fff;border:0;border-radius:0;padding:16px 18px}}
+  .card .lbl{{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#6b7280}}
+  .card .val{{font-size:22px;font-weight:600;margin-top:4px;color:#0f172a}}
+  section{{background:#fff;border:0;border-bottom:1px solid #cbd5e1;border-radius:0;padding:18px;margin:0}}
+  section h2{{margin:0 0 12px 0;font-size:14px;font-weight:600;color:#0f172a}}
+  table{{width:100%;border-collapse:collapse;font-size:13px}}
+  /* `table.fixed` opts a table into table-layout:fixed so that per-column
+     widths set via <th style="width:...">  actually pin the layout (in
+     auto mode the browser stretches columns to content, which is what was
+     making the Latest-events table overflow once we added the Email
+     column). The Properties cell then wraps to multiple lines. */
+  table.fixed{{table-layout:fixed}}
+  /* Tables can exceed the section card's width once you have many columns
+     (Top users now has 11 columns); wrap the <table> in a div.table-scroll
+     and the overflow appears as a horizontal scrollbar inside the section
+     instead of pushing the page wider. The negative-margin + matching
+     padding trick keeps the scrollable region flush with the table without
+     also widening the visible card. */
+  .table-scroll{{overflow-x:auto;margin:0 -18px;padding:0 18px;-webkit-overflow-scrolling:touch}}
+  th,td{{padding:7px 10px;border-bottom:1px solid #f1f5f9;text-align:left;vertical-align:top}}
+  th{{font-weight:500;color:#6b7280;font-size:11px;text-transform:uppercase;letter-spacing:.05em;background:#fafafa}}
+  td.num{{text-align:right;font-variant-numeric:tabular-nums;font-weight:500}}
+  /* Headers of numeric columns must right-align with their values — without
+     this the `th,td{{text-align:left}}` rule above left-aligns the header while
+     td.num right-aligns the number, so on a wide table the two drift to
+     opposite ends of the column and the figures look like they belong to the
+     neighbouring column. */
+  th.num{{text-align:right}}
+  td.ts{{white-space:nowrap;color:#6b7280;font-variant-numeric:tabular-nums}}
+  td.mono{{font-family:ui-monospace,Menlo,Consolas,monospace;color:#6b7280;font-size:12px;overflow:hidden;text-overflow:ellipsis}}
+  /* Properties cell: truncated to one line.  Click opens a modal with the
+     full pretty-printed JSON.  Full payload is stashed in the cell's
+     data-props attribute (HTML-escaped on the server side). */
+  td.props-trunc{{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;color:#374151;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;border-bottom:1px dotted transparent}}
+  td.props-trunc:hover{{background:#f1f5f9;border-bottom-color:#94a3b8}}
+  /* ── Properties modal ─────────────────────────────────────────────── */
+  .modal-overlay{{position:fixed;inset:0;background:rgba(15,23,42,0.5);display:none;align-items:center;justify-content:center;z-index:1000;padding:24px}}
+  .modal-overlay.open{{display:flex}}
+  .modal-box{{background:#fff;border-radius:0;width:min(720px,100%);max-height:80vh;display:flex;flex-direction:column;border:1px solid #0f172a;box-shadow:none;overflow:hidden}}
+  .modal-head{{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid #e5e7eb;gap:12px}}
+  .modal-title{{font-size:13px;font-weight:600;color:#0f172a;line-height:1.4;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+  .modal-x{{background:none;border:0;font-size:22px;line-height:1;color:#94a3b8;cursor:pointer;padding:0 6px}}
+  .modal-x:hover{{color:#0f172a}}
+  .modal-body{{flex:1;margin:0;padding:14px 18px;overflow:auto;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.55;color:#1f2937;white-space:pre-wrap;word-break:break-word;background:#fafafa}}
+  .modal-foot{{padding:10px 18px;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:8px;background:#fff}}
+  .modal-btn{{background:#4338ca;color:#fff;border:0;padding:6px 14px;border-radius:0;font-size:12px;font-weight:500;cursor:pointer}}
+  .modal-btn:hover{{background:#3730a3}}
+  .modal-btn.copied{{background:#16a34a}}
+  a.user{{color:#4338ca;text-decoration:none;font-weight:500}}
+  a.user:hover{{text-decoration:underline}}
+  details.legend summary{{cursor:pointer;font-size:13px;font-weight:600;color:#0f172a;list-style:none;padding:4px 0;user-select:none}}
+  details.legend summary::-webkit-details-marker{{display:none}}
+  details.legend summary::before{{content:"\\25B6";display:inline-block;margin-right:8px;font-size:9px;color:#6b7280;transition:transform .15s}}
+  details.legend[open] summary::before{{transform:rotate(90deg)}}
+  details.legend td code{{background:#f1f5f9;padding:1px 6px;border-radius:0;font-size:12px;color:#0f172a}}
+  details.legend td{{vertical-align:top}}
+  .userid{{display:inline-block;padding:1px 6px;background:#dcfce7;color:#166534;border-radius:0;font-size:10px}}
+  .anon{{display:inline-block;padding:1px 6px;background:#f3f4f6;color:#6b7280;border-radius:0;font-size:10px}}
+  .chart{{display:flex;align-items:flex-end;gap:6px;height:180px;border-bottom:1px solid #e5e7eb;padding-bottom:8px}}
+  .bar{{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;min-width:0;height:100%}}
+  .bar .count{{font-size:10px;color:#6b7280;margin-bottom:3px;font-variant-numeric:tabular-nums;line-height:1;min-height:11px}}
+  .bar .fill{{width:100%;background:linear-gradient(180deg,#6366f1 0%,#818cf8 100%);border-radius:0}}
+  .bar .day{{font-size:10px;color:#9ca3af;margin-top:6px;font-variant-numeric:tabular-nums}}
+  .row2{{display:grid;grid-template-columns:1fr 1fr;gap:1px;margin:0;background:#cbd5e1;border-bottom:1px solid #cbd5e1}}
+  .row2>section{{border-bottom:0}}
+  @media (max-width: 760px){{.row2{{grid-template-columns:1fr}}}}
+  .ranges{{margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}}
+  .ranges .rlbl{{font-size:12px;color:#94a3b8;margin-right:2px}}
+  a.range{{display:inline-block;padding:5px 14px;border-radius:0;font-size:12px;
+    text-decoration:none;background:#f1f5f9;color:#334155;border:1px solid #cbd5e1}}
+  a.range:hover{{background:#e2e8f0}}
+  a.range.on{{background:#4f46e5;color:#fff;border-color:#4f46e5;font-weight:600}}
+  a.dl{{display:inline-block;padding:5px 14px;border-radius:0;font-size:12px;
+    text-decoration:none;background:#065f46;color:#fff;border:1px solid #065f46;font-weight:600}}
+  a.dl:hover{{background:#047857;border-color:#047857}}
+  a.dl.alt{{background:#fff;color:#065f46}}
+  a.dl.alt:hover{{background:#ecfdf5}}
+</style></head>
+<body>
+<header>
+  <h1>UniVicoustic — Analytics</h1>
+  <div class="meta">Window: {win} &nbsp;·&nbsp; All-time totals shown in top row</div>
+  <div class="ranges"><span class="rlbl">Range:</span>{range_links}</div>
+  <div class="ranges">
+    <span class="rlbl">Download:</span>
+    <a class="dl" href="/api/admin/analytics/download.xlsx?key={key}&amp;days={0 if all_time else days}">⬇ Excel — {win}</a>
+    <a class="dl alt" href="/api/admin/analytics/download.xlsx?key={key}&amp;days=0">⬇ Excel — all time</a>
+    <span class="rlbl">multi-sheet .xlsx · full rows (not truncated)</span>
+  </div>
+</header>
+
+<nav class="toc" aria-label="On-page navigation">
+  <div class="lbl">Jump to</div>
+  <a href="#overview">Overview cards</a>
+  <a href="#daily">Daily activity</a>
+  <a href="#events">Top events</a>
+  <a href="#funnel">Outcome funnel</a>
+  <a href="#profiles">Profiles</a>
+  <a href="#users">Logged-in users</a>
+  <a href="#anon">Anonymous traffic</a>
+  <a href="#latest">Latest 50 events</a>
+  <a href="#glossary">Event glossary</a>
+</nav>
+
+<div class="wrap">
+
+  <div id="overview" class="cards">
+    {card("Events (all-time)", total_events)}
+    {card("Users (all-time)", total_users)}
+    {card("Sessions (all-time)", total_sessions)}
+    {card(f"Events ({win_short})", window_events)}
+    {card(f"Users ({win_short})", window_users)}
+    {card_raw(f"Time on configurator ({win_short})", _fmt_duration(total_active_ms))}
+    {card("Save clicks", outcomes.get("save_clicked", 0))}
+    {card("Downloads", outcomes.get("download_clicked", 0))}
+    {card("Tech-specs views", outcomes.get("tech_specs_viewed", 0))}
+  </div>
+
+  <section id="daily">
+    <h2>Daily activity ({'last ' + str(chart_days) + ' days (most recent — chart is capped)' if chart_truncated else win})</h2>
+    <div class="chart">{daily_bars or '<em style="color:#9ca3af">No data in window</em>'}</div>
+  </section>
+
+  <div class="row2">
+    <section id="events">
+      <h2>Top events ({win})</h2>
+      <table>
+        <thead><tr><th>Event</th><th class=num>Count</th></tr></thead>
+        <tbody>{top_rows or '<tr><td colspan=2><em>No events</em></td></tr>'}</tbody>
+      </table>
+    </section>
+    <section id="funnel">
+      <h2>Outcome funnel (unique users)</h2>
+      <table>
+        <thead><tr><th>Outcome</th><th class=num>Users</th></tr></thead>
+        <tbody>
+          <tr><td>Tech-specs viewed</td><td class=num>{outcomes.get('tech_specs_viewed', 0):,}</td></tr>
+          <tr><td>Save clicked</td><td class=num>{outcomes.get('save_clicked', 0):,}</td></tr>
+          <tr><td>Downloaded</td><td class=num>{outcomes.get('download_clicked', 0):,}</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+
+  <section id="profiles">
+    <h2>By profile ({win}) &mdash; professional role chosen at sign-up</h2>
+    <table>
+      <thead><tr>
+        <th>Profile</th>
+        <th class=num style="width:120px">Users</th><th class=num style="width:120px">Events</th>
+        <th class=num style="width:120px">Downloads</th><th class=num style="width:120px">Saves</th>
+      </tr></thead>
+      <tbody>{profile_rows or '<tr><td colspan=5><em>No data in window</em></td></tr>'}</tbody>
+    </table>
+  </section>
+
+  <section id="users">
+    <h2>Top logged-in users ({win}) &mdash; click an ID to see their journey</h2>
+    <div class="table-scroll">
+    <table>
+      <thead><tr>
+        <th>User ID</th><th>Email</th><th>Profile</th>
+        <th class=num>Events</th><th class=num>Sessions</th><th class=num>Devices</th>
+        <th class=num>Downloads</th><th class=num>Saves</th><th class=num>Specs</th>
+        <th class=num>Time spent</th>
+        <th>First seen (IST)</th><th>Last seen (IST)</th>
+      </tr></thead>
+      <tbody>{user_rows or '<tr><td colspan=12><em>No logged-in users in window</em></td></tr>'}</tbody>
+    </table>
+    </div>
+  </section>
+
+  <section id="anon">
+    <h2>Anonymous traffic ({win}) &mdash; visitors who never logged in</h2>
+    <div class="table-scroll">
+    <table>
+      <thead><tr>
+        <th>Anon ID</th>
+        <th class=num>Events</th><th class=num>Sessions</th>
+        <th>First seen (IST)</th><th>Last seen (IST)</th>
+      </tr></thead>
+      <tbody>{anon_rows or '<tr><td colspan=5><em>No anonymous traffic in window (good — everyone logged in)</em></td></tr>'}</tbody>
+    </table>
+    </div>
+  </section>
+
+  <section id="latest">
+    <h2>Latest 50 events</h2>
+    <div class="table-scroll">
+    <table class="fixed">
+      <thead><tr>
+        <th style="width:155px">Time (IST)</th>
+        <th style="width:170px">Event</th>
+        <th style="width:85px">User/Anon</th>
+        <th style="width:220px">Email</th>
+        <th style="width:90px">Session</th>
+        <th>Properties</th>
+      </tr></thead>
+      <tbody>{recent_rows or '<tr><td colspan=6><em>No events</em></td></tr>'}</tbody>
+    </table>
+    </div>
+  </section>
+
+  <section id="glossary">
+    <details class="legend" open>
+      <summary>Event glossary &mdash; what each event name means</summary>
+      <table style="margin-top:12px">
+        <thead><tr><th style="width:230px">Event</th><th>What it means</th></tr></thead>
+        <tbody>
+          <tr><td><code>configurator_loaded</code></td><td>The configurator page mounted in a user's browser (first paint).</td></tr>
+          <tr><td><code>user_registered</code></td><td>New account created via email-OTP signup.</td></tr>
+          <tr><td><code>user_logged_in</code></td><td>Existing user signed in.</td></tr>
+          <tr><td><code>user_logged_out</code></td><td>User clicked Log out.</td></tr>
+          <tr><td><code>user_identified</code></td><td>Frontend tied an anon_id to a known user_id + email (fires once after login or app boot with cached session). Used by the dashboard to display emails.</td></tr>
+          <tr><td><code>series_changed</code></td><td>User switched to a different product series (e.g. Bespoke Graphics &rarr; Fabrics).</td></tr>
+          <tr><td><code>category_changed</code></td><td>User picked a different category within the current series (e.g. Designer Textile &rarr; Color Core).</td></tr>
+          <tr><td><code>product_type_selected</code></td><td>Surface type changed (flat / embossed / grooving). Properties include <code>from</code> and <code>to</code>.</td></tr>
+          <tr><td><code>emboss_pattern_selected</code></td><td>User selected an emboss pattern (Ribbed 25, Aqualine, Penray, etc.).</td></tr>
+          <tr><td><code>studio_lighting_toggled</code></td><td>User changed the HDRI studio lighting mode (Off / Warm / Soft).</td></tr>
+          <tr><td><code>category_dwell</code></td><td>How long the user spent on a category before moving on. Properties include <code>dwell_ms</code>.</td></tr>
+          <tr><td><code>preview_rendered</code></td><td>The user has filled every required field — the live preview is now fully showing their configuration. Often the closest signal to "intent to use the result."</td></tr>
+          <tr><td><code>save_clicked</code></td><td>User clicked the Save button. Properties include <code>result: "saved"</code> or <code>"no_design"</code>.</td></tr>
+          <tr><td><code>download_clicked</code></td><td>User clicked the Download button (PNG/PDF of the configuration). The strongest outcome signal.</td></tr>
+          <tr><td><code>tech_specs_viewed</code></td><td>User opened the Tech Specs panel (acoustic / fire rating / certifications).</td></tr>
+          <tr><td><code>reset_clicked</code></td><td>User clicked Reset to clear the configurator.</td></tr>
+          <tr><td><code>configuration_abandoned</code></td><td>User left the page (close tab / navigate away) before completing or downloading. <code>config_complete</code> property tells you whether they had all fields filled.</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:14px;font-size:12px;color:#6b7280;line-height:1.5">
+        <strong>How to read it:</strong> Every event row in the database carries the user's full configuration snapshot
+        (<code>product_type</code>, <code>category</code>, <code>size</code>, <code>thickness</code>, <code>emboss</code>) in its <code>properties</code> JSON.
+        Per-user pages expand this into the &ldquo;Configurations tried&rdquo; table.
+        Server-side timestamps (<code>server_ts</code>, ms epoch UTC) are authoritative; client timestamps may drift.
+      </p>
+    </details>
+  </section>
+</div>
+
+<!-- ── Properties modal ──
+     One modal lives at the page level.  Click handler is delegated from
+     document, so any cell with class="props-trunc" anywhere on the page
+     opens it.  Closes on X, overlay click, or Escape. -->
+<div id="props-modal" class="modal-overlay" aria-hidden="true" role="dialog">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div id="props-modal-title" class="modal-title"></div>
+      <button class="modal-x" data-modal-close aria-label="Close">&times;</button>
+    </div>
+    <pre id="props-modal-body" class="modal-body"></pre>
+    <div class="modal-foot">
+      <button class="modal-btn" id="props-modal-copy">Copy JSON</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){{
+  var modal = document.getElementById('props-modal');
+  var titleEl = document.getElementById('props-modal-title');
+  var bodyEl = document.getElementById('props-modal-body');
+  var copyBtn = document.getElementById('props-modal-copy');
+
+  function openModal(props, eventName, eventTime){{
+    var pretty = props;
+    try {{ pretty = JSON.stringify(JSON.parse(props), null, 2); }} catch (e) {{}}
+    titleEl.textContent = eventName + '  ·  ' + eventTime;
+    bodyEl.textContent = pretty;
+    copyBtn.textContent = 'Copy JSON';
+    copyBtn.classList.remove('copied');
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+  }}
+  function closeModal(){{
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+  }}
+
+  // Delegated click: any .props-trunc cell anywhere on the page.
+  document.addEventListener('click', function(e){{
+    var cell = e.target.closest('.props-trunc');
+    if (cell) {{
+      openModal(cell.dataset.props || '', cell.dataset.event || '', cell.dataset.time || '');
+      return;
+    }}
+    if (e.target.matches('[data-modal-close]') || e.target === modal) {{
+      closeModal();
+    }}
+  }});
+  document.addEventListener('keydown', function(e){{
+    if (e.key === 'Escape' && modal.classList.contains('open')) closeModal();
+  }});
+  copyBtn.addEventListener('click', function(){{
+    var text = bodyEl.textContent;
+    if (!navigator.clipboard) return;
+    navigator.clipboard.writeText(text).then(function(){{
+      copyBtn.textContent = 'Copied';
+      copyBtn.classList.add('copied');
+      setTimeout(function(){{
+        copyBtn.textContent = 'Copy JSON';
+        copyBtn.classList.remove('copied');
+      }}, 1500);
+    }});
+  }});
+}})();
+</script>
+</body></html>"""
+    return html
+
+
+# ── Analytics Excel export: GET /api/admin/analytics/download.xlsx?key=… ─────
+# Multi-sheet .xlsx of everything the dashboard shows, for offline analysis.
+# Same ADMIN_TOKEN gate and same `days` window semantics as the dashboard
+# (days=0 → all time), so the button can hand over whatever range is on screen.
+#
+# Deliberate difference from the dashboard: the HTML page truncates its tables
+# (top 25 events / 30 users / 20 anon) to stay readable. The spreadsheet does
+# NOT — it carries every row, since exporting a truncated list is the one thing
+# that would make the download useless for analysis.
+#
+# Sheets: Summary · Daily activity · Top events · Users · Anonymous · All events
+@api_router.get("/admin/analytics/download.xlsx")
+async def admin_analytics_xlsx(key: str = "", days: int = 14):
+    admin_token = os.environ.get("ADMIN_TOKEN", "")
+    if not admin_token:
+        raise HTTPException(status_code=404, detail="Not found")
+    if key != admin_token:
+        raise HTTPException(status_code=401, detail="Bad key")
+
+    try:
+        import io
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment
+        from openpyxl.utils import get_column_letter
+        from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
+    except ImportError:
+        # openpyxl missing on this box — fail loudly but without 500-ing the app.
+        raise HTTPException(status_code=503,
+                            detail="Excel export unavailable (openpyxl not installed).")
+
+    try:
+        days = int(days)
+    except (TypeError, ValueError):
+        days = 14
+    all_time = days <= 0
+    days = 0 if all_time else min(days, 365)
+    cutoff_ms = 0 if all_time else int((time.time() - days * 86400) * 1000)
+    win = "all time" if all_time else f"last {days} days"
+
+    conn = analytics_db.get_conn()
+    IST = timezone(timedelta(hours=5, minutes=30))
+
+    def q(sql, *params):
+        return conn.execute(sql, params).fetchall()
+
+    def ist(ms):
+        if not ms:
+            return ""
+        return datetime.fromtimestamp(ms / 1000, tz=IST).strftime("%Y-%m-%d %H:%M:%S")
+
+    # Excel rejects control characters and caps a cell at 32,767 chars.
+    def clean(v):
+        if isinstance(v, str):
+            v = ILLEGAL_CHARACTERS_RE.sub("", v)
+            if len(v) > 32000:
+                v = v[:32000] + "…[truncated]"
+        return v
+
+    wb = Workbook()
+    HEAD_FILL = PatternFill("solid", fgColor="4F46E5")
+    HEAD_FONT = Font(color="FFFFFF", bold=True)
+
+    def add_sheet(title, headers, rows, widths=None, first=False):
+        ws = wb.active if first else wb.create_sheet()
+        ws.title = title
+        ws.append(headers)
+        for c in range(1, len(headers) + 1):
+            cell = ws.cell(row=1, column=c)
+            cell.fill = HEAD_FILL
+            cell.font = HEAD_FONT
+            cell.alignment = Alignment(vertical="center")
+        for r in rows:
+            ws.append([clean(v) for v in r])
+        ws.freeze_panes = "A2"                      # keep headers visible
+        if rows:
+            ws.auto_filter.ref = (
+                f"A1:{get_column_letter(len(headers))}{len(rows) + 1}"
+            )
+        for i, w in enumerate(widths or [], start=1):
+            ws.column_dimensions[get_column_letter(i)].width = w
+        return ws
+
+    # ── Sheet 1: Summary ────────────────────────────────────────────────────
+    total_events = q("SELECT COUNT(*) FROM events")[0][0]
+    total_users = q("SELECT COUNT(DISTINCT anon_id) FROM events")[0][0]
+    total_sessions = q("SELECT COUNT(DISTINCT session_id) FROM events")[0][0]
+    win_events = q("SELECT COUNT(*) FROM events WHERE server_ts>=?", cutoff_ms)[0][0]
+    win_users = q("SELECT COUNT(DISTINCT anon_id) FROM events WHERE server_ts>=?", cutoff_ms)[0][0]
+    win_sessions = q("SELECT COUNT(DISTINCT session_id) FROM events WHERE server_ts>=?", cutoff_ms)[0][0]
+    outcomes = dict(q(
+        "SELECT event_name, COUNT(DISTINCT anon_id) FROM events "
+        "WHERE event_name IN ('save_clicked','download_clicked','tech_specs_viewed') "
+        "AND server_ts>=? GROUP BY event_name", cutoff_ms))
+    first_ms = q("SELECT MIN(server_ts) FROM events")[0][0]
+    last_ms = q("SELECT MAX(server_ts) FROM events")[0][0]
+
+    add_sheet("Summary", ["Metric", "Value"], [
+        ("Generated (IST)", ist(int(time.time() * 1000))),
+        ("Range", win),
+        ("", ""),
+        ("Events (all-time)", total_events),
+        ("Users (all-time)", total_users),
+        ("Sessions (all-time)", total_sessions),
+        ("Oldest event (IST)", ist(first_ms)),
+        ("Newest event (IST)", ist(last_ms)),
+        ("", ""),
+        (f"Events ({win})", win_events),
+        (f"Users ({win})", win_users),
+        (f"Sessions ({win})", win_sessions),
+        ("", ""),
+        (f"Unique users who saved ({win})", outcomes.get("save_clicked", 0)),
+        (f"Unique users who downloaded ({win})", outcomes.get("download_clicked", 0)),
+        (f"Unique users who viewed tech specs ({win})", outcomes.get("tech_specs_viewed", 0)),
+    ], widths=[42, 26], first=True)
+
+    # ── Sheet 2: Daily activity ─────────────────────────────────────────────
+    add_sheet("Daily activity", ["Date (IST)", "Events", "Users", "Sessions"], q(
+        "SELECT date(server_ts/1000,'unixepoch','+5 hours','+30 minutes') AS d,"
+        " COUNT(*), COUNT(DISTINCT anon_id), COUNT(DISTINCT session_id)"
+        " FROM events WHERE server_ts>=? GROUP BY d ORDER BY d ASC", cutoff_ms),
+        widths=[14, 10, 10, 10])
+
+    # ── Sheet 3: Top events (ALL event types, not just top 25) ──────────────
+    add_sheet("Top events", ["Event", "Count", "Unique users"], q(
+        "SELECT event_name, COUNT(*), COUNT(DISTINCT anon_id) FROM events"
+        " WHERE server_ts>=? GROUP BY event_name ORDER BY 2 DESC", cutoff_ms),
+        widths=[32, 10, 14])
+
+    # ── Sheet 4: Users (ALL logged-in users) ────────────────────────────────
+    urows = q("""
+        SELECT e.user_id,
+               (SELECT json_extract(properties,'$.email') FROM events ui
+                 WHERE ui.user_id=e.user_id AND ui.event_name='user_identified'
+                 ORDER BY ui.server_ts DESC LIMIT 1) AS email,
+               MAX(e.profile) AS profile,
+               COUNT(*), COUNT(DISTINCT session_id), COUNT(DISTINCT anon_id),
+               SUM(CASE WHEN event_name='download_clicked' THEN 1 ELSE 0 END),
+               SUM(CASE WHEN event_name='save_clicked' THEN 1 ELSE 0 END),
+               SUM(CASE WHEN event_name='tech_specs_viewed' THEN 1 ELSE 0 END),
+               MIN(server_ts), MAX(server_ts)
+        FROM events e WHERE server_ts>=? AND user_id IS NOT NULL
+        GROUP BY e.user_id ORDER BY 4 DESC""", cutoff_ms)
+    add_sheet("Users",
+              ["User ID", "Email", "Profile", "Events", "Sessions", "Devices",
+               "Downloads", "Saves", "Tech specs", "First seen (IST)", "Last seen (IST)"],
+              [(r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], ist(r[9]), ist(r[10])) for r in urows],
+              widths=[38, 30, 22, 9, 10, 9, 11, 8, 11, 20, 20])
+
+    # ── Sheet 4b: By profile ────────────────────────────────────────────────
+    add_sheet("By profile",
+              ["Profile", "Users", "Events", "Downloads", "Saves"],
+              q("""
+        SELECT COALESCE(profile,'(not set)'),
+               COUNT(DISTINCT COALESCE(user_id, anon_id)), COUNT(*),
+               SUM(CASE WHEN event_name='download_clicked' THEN 1 ELSE 0 END),
+               SUM(CASE WHEN event_name='save_clicked' THEN 1 ELSE 0 END)
+        FROM events WHERE server_ts>=? GROUP BY 1 ORDER BY 2 DESC""", cutoff_ms),
+              widths=[26, 10, 10, 12, 10])
+
+    # ── Sheet 5: Anonymous traffic (ALL) ────────────────────────────────────
+    arows = q("""
+        SELECT anon_id, COUNT(*), COUNT(DISTINCT session_id), MIN(server_ts), MAX(server_ts)
+        FROM events
+        WHERE server_ts>=? AND anon_id NOT IN
+              (SELECT DISTINCT anon_id FROM events WHERE user_id IS NOT NULL AND server_ts>=?)
+        GROUP BY anon_id ORDER BY 2 DESC""", cutoff_ms, cutoff_ms)
+    add_sheet("Anonymous",
+              ["Anon ID", "Events", "Sessions", "First seen (IST)", "Last seen (IST)"],
+              [(r[0], r[1], r[2], ist(r[3]), ist(r[4])) for r in arows],
+              widths=[38, 10, 10, 20, 20])
+
+    # ── Sheet 6: All events (raw) ───────────────────────────────────────────
+    # Hard cap so one click can't try to materialise an unbounded table in RAM
+    # on a small instance. Disclosed on the Summary sheet when it bites.
+    RAW_CAP = 100000
+    erows = q("""
+        SELECT e.id, e.server_ts, e.event_name, e.user_id,
+               (SELECT json_extract(properties,'$.email') FROM events ui
+                 WHERE ui.user_id=e.user_id AND ui.event_name='user_identified'
+                 ORDER BY ui.server_ts DESC LIMIT 1) AS email,
+               e.anon_id, e.session_id, e.profile, e.country, e.region, e.city,
+               e.url, e.properties
+        FROM events e WHERE e.server_ts>=? ORDER BY e.id DESC LIMIT ?""",
+        cutoff_ms, RAW_CAP)
+    add_sheet("All events",
+              ["ID", "Time (IST)", "Event", "User ID", "Email", "Anon ID", "Session ID",
+               "Profile", "Country", "Region", "City", "URL", "Properties (JSON)"],
+              [(r[0], ist(r[1]), r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9], r[10], r[11], r[12])
+               for r in erows],
+              widths=[8, 20, 26, 38, 28, 38, 38, 22, 9, 18, 18, 40, 60])
+    if len(erows) >= RAW_CAP:
+        wb["Summary"].append(("", ""))
+        wb["Summary"].append(
+            ("NOTE", f"'All events' capped at {RAW_CAP:,} most recent rows "
+                     f"({win_events:,} in range). Narrow the range for the rest."))
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    stamp = datetime.now(IST).strftime("%Y-%m-%d")
+    scope = "all-time" if all_time else f"{days}d"
+    fname = f"univicoustic-analytics-{scope}-{stamp}.xlsx"
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    )
 
 
 # Include the router in the main app

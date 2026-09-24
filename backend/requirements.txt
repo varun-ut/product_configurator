@@ -1,5 +1,8 @@
 ﻿annotated-doc==0.0.4
 anthropic>=0.40.0
+# Chat (/api/chat) runs on Gemini. `anthropic` above is still required — the
+# Wall Visualizer (/api/visualize-walls) is still on Claude.
+google-genai>=1.0.0
 annotated-types==0.7.0
 anyio==4.12.1
 click==8.3.1
@@ -18,3 +21,8 @@ uvicorn==0.42.0
 # Auth deps (see auth.py): JWT signing + RFC-compliant email validation for EmailStr
 pyjwt==2.10.1
 email-validator==2.2.0
+# Offline IP→geo (see geoip_lookup.py). Reads a local MaxMind-format .mmdb
+# (GeoLite2 City or DB-IP City Lite). No network call at runtime.
+geoip2==5.3.0
+# Excel export for the analytics admin dashboard (/api/admin/analytics/download.xlsx)
+openpyxl==3.1.5

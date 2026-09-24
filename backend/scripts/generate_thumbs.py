@@ -29,6 +29,10 @@ except ImportError:
     print("ERROR: Pillow is not installed. Run:  pip install Pillow")
     sys.exit(1)
 
+# Some source assets (e.g. raw emboss masters) are very large. Trust local files
+# and disable Pillow's decompression-bomb guard so the script can process them.
+Image.MAX_IMAGE_PIXELS = None
+
 # ── Config (must match server.py) ────────────────────────────────────────────
 
 STATIC_DIR   = Path(__file__).parent.parent / "static"

@@ -98,13 +98,23 @@
     return null;
   }
 
-  /* ---------- theme override ---------- */
+  /* ---------- theme override ----------
+     IMPORTANT: every section (.shepherd-content, .shepherd-header,
+     .shepherd-text, .shepherd-footer) explicitly sets `background: #fff`.
+     Default shepherd.css does set a white bg on .shepherd-element, but
+     this app's Tailwind preflight (`* { @apply border-border }`) + the
+     accent/bg utility resets in index.css end up making the inherited
+     surface transparent for everything except the header — so the body
+     copy and footer buttons used to bleed straight through onto the
+     configurator preview. Pinning the bg on every region keeps the
+     dialog opaque regardless of cascade order. */
   var STYLE = `
-    .shepherd-theme-uv .shepherd-content { border-radius: 12px; font-family: inherit; }
+    .shepherd-theme-uv.shepherd-element { background: #fff; box-shadow: 0 12px 32px rgba(15,15,15,0.18), 0 2px 6px rgba(15,15,15,0.08); border-radius: 12px; }
+    .shepherd-theme-uv .shepherd-content { background: #fff; border-radius: 12px; font-family: inherit; overflow: hidden; }
     .shepherd-theme-uv .shepherd-header { background: #fff; padding: 16px 18px 4px; border-radius: 12px 12px 0 0; }
     .shepherd-theme-uv .shepherd-title { color: #0f0f0f; font-weight: 600; font-size: 15px; }
-    .shepherd-theme-uv .shepherd-text { color: #444; font-size: 14px; line-height: 1.5; padding: 6px 18px 16px; }
-    .shepherd-theme-uv .shepherd-footer { padding: 0 18px 16px; }
+    .shepherd-theme-uv .shepherd-text { background: #fff; color: #444; font-size: 14px; line-height: 1.5; padding: 6px 18px 16px; }
+    .shepherd-theme-uv .shepherd-footer { background: #fff; padding: 0 18px 16px; border-radius: 0 0 12px 12px; }
     .shepherd-theme-uv .shepherd-button {
       background: hsl(var(--accent)); color: hsl(var(--accent-foreground, 0 0% 100%)); border-radius: 8px;
       padding: 8px 14px; font-size: 13px; font-weight: 500;
@@ -423,7 +433,11 @@
 
       var seen = false;
       try { seen = !!localStorage.getItem(STORAGE_KEY); } catch (e) {}
-      if (!seen) {
+      // Deep-link (dl=1) loads carry a specific pre-selected combo; the tour's
+      // demo-fill would overwrite it, so never auto-launch the tour then.
+      // (Manual relaunch via window.startUnivicousticTour() is unaffected.)
+      var isDeepLink = /[?&]dl=1(&|$)/.test(window.location.search);
+      if (!seen && !isDeepLink) {
         // Delay slightly so the SPA has mounted, then fill + start.
         // Re-check the pathname inside the timeout because AuthGuard may
         // have redirected an unauthenticated user from "/" to "/login"
@@ -433,6 +447,7 @@
         setTimeout(function () {
           var p = window.location.pathname || '';
           if (p === '/login' || p.indexOf('/login/') === 0) return;
+          if (/[?&]dl=1(&|$)/.test(window.location.search)) return;
           fillDemoThenGo(startTour);
         }, 1200);
       }
