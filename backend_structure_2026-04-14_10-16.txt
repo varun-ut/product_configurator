@@ -1,0 +1,731 @@
+Folder map of d:\VARUN\Projects\product_configurator\product_configurator\backend
+==================================================
+
+├── __pycache__/
+│   ├── chat_knowledge.cpython-314.pyc
+│   ├── config.cpython-314.pyc
+│   └── server.cpython-314.pyc
+├── data/
+│   ├── products.json
+│   └── tech-specs.json
+├── myenv/
+├── original_emboss/
+│   ├── bloom.png
+│   ├── diamond_bak_1.png
+│   ├── diamond_psuedo.png
+│   ├── diamond.png
+│   ├── flux_ribbed.png
+│   ├── ribbed_45mm.png
+│   ├── ribbed_60mm.png
+│   └── tapered.png
+├── scripts/
+│   ├── dump_catalog.py
+│   └── generate_thumbs.py
+├── static/
+│   ├── _thumbcache/
+│   │   ├── fabric/
+│   │   │   ├── color-core/
+│   │   │   │   ├── 0_helper/
+│   │   │   │   ├── emboss/
+│   │   │   │   ├── embossed_line_thumbnails/
+│   │   │   │   └── panels/
+│   │   │   ├── designer_textile/
+│   │   │   │   ├── emboss_panels/
+│   │   │   │   ├── emboss_thumbnails/
+│   │   │   │   ├── furniture/
+│   │   │   │   ├── panels/
+│   │   │   │   └── tpatti/
+│   │   │   ├── furniture/
+│   │   │   │   └── color-core.jpg
+│   │   │   ├── panels/
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Alloy.jpg
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Apricot.jpg
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Arabian Spice.jpg
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Birch.jpg
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Concrete Gray.jpg
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Coral Haze.jpg
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Dune.jpg
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Fog.jpg
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Glacier.jpg
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Graphite.jpg
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Mirage.jpg
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Mushroom.jpg
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Oat.jpg
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Olive.jpg
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Pearl.jpg
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Sand.jpg
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Shadow.jpg
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Smoke Blue.jpg
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Straw.jpg
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Taupe.jpg
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Alloy.jpg
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Apricot.jpg
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Arabian Spice.jpg
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Birch.jpg
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Concrete Gray.jpg
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Coral Haze.jpg
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Dune.jpg
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Fog.jpg
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Glacier.jpg
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Graphite.jpg
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Mirage.jpg
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Mushroom.jpg
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Oat.jpg
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Olive.jpg
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Pearl.jpg
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Sand.jpg
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Shadow.jpg
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Smoke Blue.jpg
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Straw.jpg
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Taupe.jpg
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Alloy.jpg
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Apricot.jpg
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Arabian Spice.jpg
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Birch.jpg
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Concrete Gray.jpg
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Coral Haze.jpg
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Dune.jpg
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Fog.jpg
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Glacier.jpg
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Graphite.jpg
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Mirage.jpg
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Mushroom.jpg
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Oat.jpg
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Olive.jpg
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Pearl.jpg
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Sand.jpg
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Shadow.jpg
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Smoke Blue.jpg
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Straw.jpg
+│   │   │   │   └── FB-NE-06_BG_1200x2800_Taupe.jpg
+│   │   │   └── tpatti/
+│   │   │       └── color-core.jpg
+│   │   ├── flat-embossed-vmt/
+│   │   │   ├── emboss/
+│   │   │   │   ├── LH-BR-01/
+│   │   │   │   ├── LH-BR-02/
+│   │   │   │   ├── LH-BR-03/
+│   │   │   │   ├── LH-BR-04/
+│   │   │   │   ├── LH-BR-05/
+│   │   │   │   ├── LH-BR-06/
+│   │   │   │   ├── LH-GR-01/
+│   │   │   │   ├── LH-GY-01/
+│   │   │   │   ├── LH-GY-02/
+│   │   │   │   ├── LH-NE-01/
+│   │   │   │   ├── LH-NE-02/
+│   │   │   │   ├── ST-NC-01/
+│   │   │   │   ├── ST-NC-02/
+│   │   │   │   ├── ST-NC-03/
+│   │   │   │   ├── ST-NC-04/
+│   │   │   │   ├── ST-NC-05/
+│   │   │   │   ├── ST-NC-06/
+│   │   │   │   ├── ST-NC-07/
+│   │   │   │   ├── ST-NC-08/
+│   │   │   │   ├── ST-NC-09/
+│   │   │   │   ├── ST-NC-10/
+│   │   │   │   ├── ST-NC-11/
+│   │   │   │   ├── ST-NC-12/
+│   │   │   │   ├── ST-NC-13/
+│   │   │   │   ├── ST-NC-14/
+│   │   │   │   ├── ST-NC-15/
+│   │   │   │   ├── ST-NC-16/
+│   │   │   │   ├── ST-NC-17/
+│   │   │   │   ├── ST-NC-18/
+│   │   │   │   ├── ST-NC-20/
+│   │   │   │   ├── ST-NC-21/
+│   │   │   │   ├── ST-NC-22/
+│   │   │   │   ├── ST-NC-23/
+│   │   │   │   ├── ST-NC-24/
+│   │   │   │   ├── ST-NC-25/
+│   │   │   │   ├── ST-NC-26/
+│   │   │   │   ├── ST-NC-27/
+│   │   │   │   ├── ST-NC-28/
+│   │   │   │   ├── ST-NC-29/
+│   │   │   │   ├── ST-NC-30/
+│   │   │   │   ├── ST-NC-31/
+│   │   │   │   ├── ST-NC-32/
+│   │   │   │   ├── ST-NC19/
+│   │   │   │   ├── WD-NC-01/
+│   │   │   │   ├── WD-NC-02/
+│   │   │   │   ├── WD-NC-03/
+│   │   │   │   ├── WD-NC-04/
+│   │   │   │   ├── WD-NC-05/
+│   │   │   │   ├── WD-NC-06/
+│   │   │   │   ├── WD-NC-07/
+│   │   │   │   ├── WD-NC-08/
+│   │   │   │   ├── WD-NC-09/
+│   │   │   │   ├── WD-NC-10/
+│   │   │   │   ├── WD-NC-11/
+│   │   │   │   ├── WD-NC-12/
+│   │   │   │   ├── WD-NC-13/
+│   │   │   │   ├── WD-NC-14/
+│   │   │   │   ├── WD-NC-15/
+│   │   │   │   ├── WD-NC-16/
+│   │   │   │   ├── WD-NC-17/
+│   │   │   │   ├── WD-NC-18/
+│   │   │   │   ├── WD-NC-19/
+│   │   │   │   ├── WD-NC-20/
+│   │   │   │   ├── WD-NC-21/
+│   │   │   │   ├── WD-NC-22/
+│   │   │   │   ├── WD-NC-23/
+│   │   │   │   ├── WD-NC-24/
+│   │   │   │   ├── WD-NC-25/
+│   │   │   │   ├── WD-NC-26/
+│   │   │   │   ├── WD-NC-27/
+│   │   │   │   ├── WD-NC-28/
+│   │   │   │   ├── WD-NC-29/
+│   │   │   │   ├── WD-NC-30/
+│   │   │   │   ├── WD-NC-31/
+│   │   │   │   ├── WD-NC-32/
+│   │   │   │   ├── WD-NC-33/
+│   │   │   │   ├── WD-NC-34/
+│   │   │   │   ├── WD-NC-35/
+│   │   │   │   ├── WD-NC-36/
+│   │   │   │   └── WD-NC-37/
+│   │   │   ├── embossed_line_thumbnails/
+│   │   │   │   ├── bloom.jpg
+│   │   │   │   ├── deck.jpg
+│   │   │   │   ├── ellipsia.jpg
+│   │   │   │   ├── elliptera_plane.jpg
+│   │   │   │   ├── flux_ribbed.jpg
+│   │   │   │   ├── flux_ribbed.png
+│   │   │   │   ├── ribbed_25mm.jpg
+│   │   │   │   ├── ribbed_25mm.png
+│   │   │   │   ├── ribbed_45mm.jpg
+│   │   │   │   ├── ribbed_45mm.png
+│   │   │   │   ├── ribbed_60mm.jpg
+│   │   │   │   ├── ribbed_60mm.png
+│   │   │   │   ├── shard.jpg
+│   │   │   │   ├── square_30.jpg
+│   │   │   │   ├── square_30.png
+│   │   │   │   ├── tappered.jpg
+│   │   │   │   ├── tappered.png
+│   │   │   │   ├── triangle.jpg
+│   │   │   │   └── triangle.png
+│   │   │   ├── furniture/
+│   │   │   │   ├── vmd-color-block.jpg
+│   │   │   │   ├── vmd-fun-and-fantasy.jpg
+│   │   │   │   ├── vmd-indian-modern.jpg
+│   │   │   │   ├── vmd-leather.jpg
+│   │   │   │   ├── vmd-line-and-texture.jpg
+│   │   │   │   ├── vmd-luxury-textures.jpg
+│   │   │   │   ├── vmd-marble.jpg
+│   │   │   │   ├── vmd-modern-corporate-setup.jpg
+│   │   │   │   ├── vmd-nature-reimagined.jpg
+│   │   │   │   ├── vmd-patterned-weaves.jpg
+│   │   │   │   ├── vmd-quiet-bloom.jpg
+│   │   │   │   ├── vmd-rhythm-and-repeat.jpg
+│   │   │   │   ├── vmd-soft-texture.jpg
+│   │   │   │   ├── vmd-wood-classics.jpg
+│   │   │   │   └── vmd-woven-brushwork.jpg
+│   │   │   ├── panels/
+│   │   │   │   ├── vmd-color-block/
+│   │   │   │   ├── vmd-fun-and-fantasy/
+│   │   │   │   ├── vmd-indian-modern/
+│   │   │   │   ├── vmd-leather/
+│   │   │   │   ├── vmd-line-and-texture/
+│   │   │   │   ├── vmd-luxury-textures/
+│   │   │   │   ├── vmd-marble/
+│   │   │   │   ├── vmd-modern-corporate/
+│   │   │   │   ├── vmd-nature-reimagined/
+│   │   │   │   ├── vmd-patterned-weaves/
+│   │   │   │   ├── vmd-quiet-bloom/
+│   │   │   │   ├── vmd-rhythm-and-repeat/
+│   │   │   │   ├── vmd-soft-texture/
+│   │   │   │   ├── vmd-wood-classics/
+│   │   │   │   └── vmd-woven-brushwork/
+│   │   │   └── tpatti/
+│   │   │       ├── vmd-color-block.jpg
+│   │   │       ├── vmd-fun-and-fantasy.jpg
+│   │   │       ├── vmd-indian-modern.jpg
+│   │   │       ├── vmd-leather.jpg
+│   │   │       ├── vmd-line-and-texture.jpg
+│   │   │       ├── vmd-luxury-textures.jpg
+│   │   │       ├── vmd-marble.jpg
+│   │   │       ├── vmd-modern-corporate-setup.jpg
+│   │   │       ├── vmd-nature-reimagined.jpg
+│   │   │       ├── vmd-patterned-weaves.jpg
+│   │   │       ├── vmd-quiet-bloom.jpg
+│   │   │       ├── vmd-rhythm-and-repeat.jpg
+│   │   │       ├── vmd-soft-texture.jpg
+│   │   │       ├── vmd-wood-classics.jpg
+│   │   │       └── vmd-woven-brushwork.jpg
+│   │   ├── ombre/
+│   │   │   └── color-core-ombre/
+│   │   │       ├── emboss/
+│   │   │       ├── embossed_line_thumbnails/
+│   │   │       ├── furniture/
+│   │   │       ├── groove/
+│   │   │       ├── groove_patterns/
+│   │   │       ├── groove_thumbnails/
+│   │   │       ├── panels/
+│   │   │       ├── temp/
+│   │   │       └── tpatti/
+│   │   ├── vicstrip/
+│   │   │   ├── double-groove/
+│   │   │   │   ├── alpine-frost.jpg
+│   │   │   │   ├── amber-walnut.jpg
+│   │   │   │   ├── auburn-oak.jpg
+│   │   │   │   ├── bourbon-walnut.jpg
+│   │   │   │   ├── carbon-black.jpg
+│   │   │   │   ├── glacier-white.jpg
+│   │   │   │   ├── lunar-ash.jpg
+│   │   │   │   ├── merlot.jpg
+│   │   │   │   ├── monarch-oak.jpg
+│   │   │   │   ├── obsidian-black.jpg
+│   │   │   │   ├── sage-green.jpg
+│   │   │   │   ├── sierra-elm.jpg
+│   │   │   │   ├── silver-birch.jpg
+│   │   │   │   ├── solara.jpg
+│   │   │   │   ├── toffee-oak.jpg
+│   │   │   │   └── windsor-oak.jpg
+│   │   │   ├── double-square/
+│   │   │   │   ├── alpine-frost.jpg
+│   │   │   │   ├── amber-walnut.jpg
+│   │   │   │   ├── auburn-oak.jpg
+│   │   │   │   ├── bourbon-walnut.jpg
+│   │   │   │   ├── carbon-black.jpg
+│   │   │   │   ├── glacier-white.jpg
+│   │   │   │   ├── lunar-ash.jpg
+│   │   │   │   ├── merlot.jpg
+│   │   │   │   ├── monarch-oak.jpg
+│   │   │   │   ├── obsidian-black.jpg
+│   │   │   │   ├── sage-green.jpg
+│   │   │   │   ├── sierra-elm.jpg
+│   │   │   │   ├── silver-birch.jpg
+│   │   │   │   ├── solara.jpg
+│   │   │   │   ├── toffee-oak.jpg
+│   │   │   │   └── windsor-oak.jpg
+│   │   │   ├── single-groove/
+│   │   │   │   ├── alpine-frost.jpg
+│   │   │   │   ├── amber-walnut.jpg
+│   │   │   │   ├── auburn-oak.jpg
+│   │   │   │   ├── bourbon-walnut.jpg
+│   │   │   │   ├── carbon-black.jpg
+│   │   │   │   ├── glacier-white.jpg
+│   │   │   │   ├── lunar-ash.jpg
+│   │   │   │   ├── merlot.jpg
+│   │   │   │   ├── monarch-oak.jpg
+│   │   │   │   ├── obsidian-black.jpg
+│   │   │   │   ├── sage-green.jpg
+│   │   │   │   ├── sierra-elm.jpg
+│   │   │   │   ├── silver-birch.jpg
+│   │   │   │   ├── solara.jpg
+│   │   │   │   ├── toffee-oak.jpg
+│   │   │   │   └── windsor-oak.jpg
+│   │   │   └── square/
+│   │   │       ├── alpine-frost.jpg
+│   │   │       ├── amber-walnut.jpg
+│   │   │       ├── auburn-oak.jpg
+│   │   │       ├── bourbon-walnut.jpg
+│   │   │       ├── carbon-black.jpg
+│   │   │       ├── glacier-white.jpg
+│   │   │       ├── lunar-ash.jpg
+│   │   │       ├── merlot.jpg
+│   │   │       ├── monarch-oak.jpg
+│   │   │       ├── obsidian-black.jpg
+│   │   │       ├── sage-green.jpg
+│   │   │       ├── sierra-elm.jpg
+│   │   │       ├── silver-birch.jpg
+│   │   │       ├── solara.jpg
+│   │   │       ├── toffee-oak.jpg
+│   │   │       └── windsor-oak.jpg
+│   │   └── wood/
+│   │       ├── furniture/
+│   │       │   ├── classic_parquet.jpg
+│   │       │   └── wood-perfocations.jpg
+│   │       ├── panels/
+│   │       │   ├── classic_parquet/
+│   │       │   └── wood-perfocations/
+│   │       ├── perfocations/
+│   │       │   ├── PF-NC-07_1200x2800.jpg
+│   │       │   ├── PF-NC-07_1200x2800.png
+│   │       │   ├── PF-NC-08_1200x2800.jpg
+│   │       │   ├── PF-NC-08_1200x2800.png
+│   │       │   ├── PF-NC-10_1200x2800.jpg
+│   │       │   ├── PF-NC-10_1200x2800.png
+│   │       │   ├── PF-NC-11_1200x2800.jpg
+│   │       │   ├── PF-NC-11_1200x2800.png
+│   │       │   ├── PF-NC-12_1200x2800.jpg
+│   │       │   ├── PF-NC-12_1200x2800.png
+│   │       │   ├── PF-NC-20_1200x2800.jpg
+│   │       │   ├── PF-NC-20_1200x2800.png
+│   │       │   ├── PF-NC-21_1200x2800.jpg
+│   │       │   ├── PF-NC-21_1200x2800.png
+│   │       │   ├── PF-NC-25_1200x2800.jpg
+│   │       │   ├── PF-NC-25_1200x2800.png
+│   │       │   ├── PF-NC-26_1200x2800.jpg
+│   │       │   ├── PF-NC-26_1200x2800.png
+│   │       │   ├── PF-NC-29_1200x2800.jpg
+│   │       │   └── PF-NC-29_1200x2800.png
+│   │       ├── perforations-thumbnails/
+│   │       │   ├── PF-NC-07_1200x2800.jpg
+│   │       │   ├── PF-NC-08_1200x2800.jpg
+│   │       │   ├── PF-NC-10_1200x2800.jpg
+│   │       │   ├── PF-NC-11_1200x2800.jpg
+│   │       │   ├── PF-NC-12_1200x2800.jpg
+│   │       │   ├── PF-NC-20_1200x2800.jpg
+│   │       │   ├── PF-NC-21_1200x2800.jpg
+│   │       │   ├── PF-NC-25_1200x2800.jpg
+│   │       │   ├── PF-NC-26_1200x2800.jpg
+│   │       │   └── PF-NC-29_1200x2800.jpg
+│   │       └── tpatti/
+│   │           ├── classic_parquet.jpg
+│   │           └── wood-prefocations.jpg
+│   ├── images/
+│   │   ├── fabric/
+│   │   │   ├── color-core/
+│   │   │   │   ├── 0_helper/
+│   │   │   │   ├── emboss/
+│   │   │   │   ├── embossed_line_thumbnails/
+│   │   │   │   ├── panels/
+│   │   │   │   └── panels_cropped/
+│   │   │   ├── designer_textile/
+│   │   │   │   ├── emboss_panels/
+│   │   │   │   ├── emboss_thumbnails/
+│   │   │   │   ├── emboss_zips/
+│   │   │   │   ├── furniture/
+│   │   │   │   ├── panels/
+│   │   │   │   ├── tpatti/
+│   │   │   │   └── zips/
+│   │   │   ├── furniture/
+│   │   │   │   └── color-core.png
+│   │   │   ├── panels/
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Alloy.png
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Apricot.png
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Arabian Spice.png
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Birch.png
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Concrete Gray.png
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Coral Haze.png
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Dune.png
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Fog.png
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Glacier.png
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Graphite.png
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Mirage.png
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Mushroom.png
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Oat.png
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Olive.png
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Pearl.png
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Sand.png
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Shadow.png
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Smoke Blue.png
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Straw.png
+│   │   │   │   ├── FB-GY-03_BG_1200x2800_Taupe.png
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Alloy.png
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Apricot.png
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Arabian Spice.png
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Birch.png
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Concrete Gray.png
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Coral Haze.png
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Dune.png
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Fog.png
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Glacier.png
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Graphite.png
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Mirage.png
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Mushroom.png
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Oat.png
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Olive.png
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Pearl.png
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Sand.png
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Shadow.png
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Smoke Blue.png
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Straw.png
+│   │   │   │   ├── FB-GY-28_BG_1200x2800_Taupe.png
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Alloy.png
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Apricot.png
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Arabian Spice.png
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Birch.png
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Concrete Gray.png
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Coral Haze.png
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Dune.png
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Fog.png
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Glacier.png
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Graphite.png
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Mirage.png
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Mushroom.png
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Oat.png
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Olive.png
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Pearl.png
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Sand.png
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Shadow.png
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Smoke Blue.png
+│   │   │   │   ├── FB-NE-06_BG_1200x2800_Straw.png
+│   │   │   │   └── FB-NE-06_BG_1200x2800_Taupe.png
+│   │   │   └── tpatti/
+│   │   │       └── color-core.png
+│   │   ├── flat-embossed-vmt/
+│   │   │   ├── emboss/
+│   │   │   │   ├── LH-BR-01/
+│   │   │   │   ├── LH-BR-02/
+│   │   │   │   ├── LH-BR-03/
+│   │   │   │   ├── LH-BR-04/
+│   │   │   │   ├── LH-BR-05/
+│   │   │   │   ├── LH-BR-06/
+│   │   │   │   ├── LH-GR-01/
+│   │   │   │   ├── LH-GY-01/
+│   │   │   │   ├── LH-GY-02/
+│   │   │   │   ├── LH-NE-01/
+│   │   │   │   ├── LH-NE-02/
+│   │   │   │   ├── ST-NC-01/
+│   │   │   │   ├── ST-NC-02/
+│   │   │   │   ├── ST-NC-03/
+│   │   │   │   ├── ST-NC-04/
+│   │   │   │   ├── ST-NC-05/
+│   │   │   │   ├── ST-NC-06/
+│   │   │   │   ├── ST-NC-07/
+│   │   │   │   ├── ST-NC-08/
+│   │   │   │   ├── ST-NC-09/
+│   │   │   │   ├── ST-NC-10/
+│   │   │   │   ├── ST-NC-11/
+│   │   │   │   ├── ST-NC-12/
+│   │   │   │   ├── ST-NC-13/
+│   │   │   │   ├── ST-NC-14/
+│   │   │   │   ├── ST-NC-15/
+│   │   │   │   ├── ST-NC-16/
+│   │   │   │   ├── ST-NC-17/
+│   │   │   │   ├── ST-NC-18/
+│   │   │   │   ├── ST-NC-19/
+│   │   │   │   ├── ST-NC-20/
+│   │   │   │   ├── ST-NC-21/
+│   │   │   │   ├── ST-NC-22/
+│   │   │   │   ├── ST-NC-23/
+│   │   │   │   ├── ST-NC-24/
+│   │   │   │   ├── ST-NC-25/
+│   │   │   │   ├── ST-NC-26/
+│   │   │   │   ├── ST-NC-27/
+│   │   │   │   ├── ST-NC-28/
+│   │   │   │   ├── ST-NC-29/
+│   │   │   │   ├── ST-NC-30/
+│   │   │   │   ├── ST-NC-31/
+│   │   │   │   ├── ST-NC-32/
+│   │   │   │   ├── WD-NC-01/
+│   │   │   │   ├── WD-NC-02/
+│   │   │   │   ├── WD-NC-03/
+│   │   │   │   ├── WD-NC-04/
+│   │   │   │   ├── WD-NC-05/
+│   │   │   │   ├── WD-NC-06/
+│   │   │   │   ├── WD-NC-07/
+│   │   │   │   ├── WD-NC-08/
+│   │   │   │   ├── WD-NC-09/
+│   │   │   │   ├── WD-NC-10/
+│   │   │   │   ├── WD-NC-11/
+│   │   │   │   ├── WD-NC-12/
+│   │   │   │   ├── WD-NC-13/
+│   │   │   │   ├── WD-NC-14/
+│   │   │   │   ├── WD-NC-15/
+│   │   │   │   ├── WD-NC-16/
+│   │   │   │   ├── WD-NC-17/
+│   │   │   │   ├── WD-NC-18/
+│   │   │   │   ├── WD-NC-19/
+│   │   │   │   ├── WD-NC-20/
+│   │   │   │   ├── WD-NC-21/
+│   │   │   │   ├── WD-NC-22/
+│   │   │   │   ├── WD-NC-23/
+│   │   │   │   ├── WD-NC-24/
+│   │   │   │   ├── WD-NC-25/
+│   │   │   │   ├── WD-NC-26/
+│   │   │   │   ├── WD-NC-27/
+│   │   │   │   ├── WD-NC-28/
+│   │   │   │   ├── WD-NC-29/
+│   │   │   │   ├── WD-NC-30/
+│   │   │   │   ├── WD-NC-31/
+│   │   │   │   ├── WD-NC-32/
+│   │   │   │   ├── WD-NC-33/
+│   │   │   │   ├── WD-NC-34/
+│   │   │   │   ├── WD-NC-35/
+│   │   │   │   ├── WD-NC-36/
+│   │   │   │   └── WD-NC-37/
+│   │   │   ├── embossed_line_thumbnails/
+│   │   │   │   ├── bloom.png
+│   │   │   │   ├── deck.png
+│   │   │   │   ├── ellipsia.png
+│   │   │   │   ├── elliptera_plane.png
+│   │   │   │   ├── flux_ribbed.png
+│   │   │   │   ├── ribbed_25mm.png
+│   │   │   │   ├── ribbed_45mm.png
+│   │   │   │   ├── ribbed_60mm.png
+│   │   │   │   ├── shard.png
+│   │   │   │   ├── square_30.png
+│   │   │   │   ├── tappered.png
+│   │   │   │   └── triangle.png
+│   │   │   ├── furniture/
+│   │   │   │   ├── .gitkeep
+│   │   │   │   ├── vmd-color-block.png
+│   │   │   │   ├── vmd-fun-and-fantasy.png
+│   │   │   │   ├── vmd-indian-modern.png
+│   │   │   │   ├── vmd-leather-bak.png
+│   │   │   │   ├── vmd-leather.png
+│   │   │   │   ├── vmd-line-and-texture.png
+│   │   │   │   ├── vmd-luxury-textures.png
+│   │   │   │   ├── vmd-marble.png
+│   │   │   │   ├── vmd-modern-corporate-setup.png
+│   │   │   │   ├── vmd-nature-reimagined.png
+│   │   │   │   ├── vmd-patterned-weaves.png
+│   │   │   │   ├── vmd-quiet-bloom.png
+│   │   │   │   ├── vmd-rhythm-and-repeat.png
+│   │   │   │   ├── vmd-soft-texture.png
+│   │   │   │   ├── vmd-wood-classics.png
+│   │   │   │   └── vmd-woven-brushwork.png
+│   │   │   ├── panels/
+│   │   │   │   ├── vmd-color-block/
+│   │   │   │   ├── vmd-fun-and-fantasy/
+│   │   │   │   ├── vmd-indian-modern/
+│   │   │   │   ├── vmd-leather/
+│   │   │   │   ├── vmd-line-and-texture/
+│   │   │   │   ├── vmd-luxury-textures/
+│   │   │   │   ├── vmd-marble/
+│   │   │   │   ├── vmd-modern-corporate/
+│   │   │   │   ├── vmd-nature-reimagined/
+│   │   │   │   ├── vmd-patterned-weaves/
+│   │   │   │   ├── vmd-quiet-bloom/
+│   │   │   │   ├── vmd-rhythm-and-repeat/
+│   │   │   │   ├── vmd-soft-texture/
+│   │   │   │   ├── vmd-wood-classics/
+│   │   │   │   └── vmd-woven-brushwork/
+│   │   │   └── tpatti/
+│   │   │       ├── .gitkeep
+│   │   │       ├── vmd-color-block.png
+│   │   │       ├── vmd-fun-and-fantasy.png
+│   │   │       ├── vmd-indian-modern.png
+│   │   │       ├── vmd-leather.png
+│   │   │       ├── vmd-line-and-texture.png
+│   │   │       ├── vmd-luxury-textures.png
+│   │   │       ├── vmd-marble.png
+│   │   │       ├── vmd-modern-corporate-setup.png
+│   │   │       ├── vmd-nature-reimagined.png
+│   │   │       ├── vmd-patterned-weaves.png
+│   │   │       ├── vmd-quiet-bloom.png
+│   │   │       ├── vmd-rhythm-and-repeat.png
+│   │   │       ├── vmd-soft-texture.png
+│   │   │       ├── vmd-wood-classics.png
+│   │   │       └── vmd-woven-brushwork.png
+│   │   ├── ombre/
+│   │   │   └── color-core-ombre/
+│   │   │       ├── emboss/
+│   │   │       ├── embossed_line_thumbnails/
+│   │   │       ├── furniture/
+│   │   │       ├── groove/
+│   │   │       ├── groove_patterns/
+│   │   │       ├── groove_thumbnails/
+│   │   │       ├── panels/
+│   │   │       ├── temp/
+│   │   │       ├── tpatti/
+│   │   │       └── line drawings.zip
+│   │   ├── vicstrip/
+│   │   │   ├── double-groove/
+│   │   │   │   ├── alpine-frost.jpg
+│   │   │   │   ├── amber-walnut.jpg
+│   │   │   │   ├── auburn-oak.jpg
+│   │   │   │   ├── bourbon-walnut.jpg
+│   │   │   │   ├── carbon-black.jpg
+│   │   │   │   ├── glacier-white.jpg
+│   │   │   │   ├── lunar-ash.jpg
+│   │   │   │   ├── merlot.jpg
+│   │   │   │   ├── monarch-oak.jpg
+│   │   │   │   ├── obsidian-black.jpg
+│   │   │   │   ├── sage-green.jpg
+│   │   │   │   ├── sierra-elm.jpg
+│   │   │   │   ├── silver-birch.jpg
+│   │   │   │   ├── solara.jpg
+│   │   │   │   ├── toffee-oak.jpg
+│   │   │   │   └── windsor-oak.jpg
+│   │   │   ├── double-square/
+│   │   │   │   ├── alpine-frost.jpg
+│   │   │   │   ├── amber-walnut.jpg
+│   │   │   │   ├── auburn-oak.jpg
+│   │   │   │   ├── bourbon-walnut.jpg
+│   │   │   │   ├── carbon-black.jpg
+│   │   │   │   ├── glacier-white.jpg
+│   │   │   │   ├── lunar-ash.jpg
+│   │   │   │   ├── merlot.jpg
+│   │   │   │   ├── monarch-oak.jpg
+│   │   │   │   ├── obsidian-black.jpg
+│   │   │   │   ├── sage-green.jpg
+│   │   │   │   ├── sierra-elm.jpg
+│   │   │   │   ├── silver-birch.jpg
+│   │   │   │   ├── solara.jpg
+│   │   │   │   ├── toffee-oak.jpg
+│   │   │   │   └── windsor-oak.jpg
+│   │   │   ├── single-groove/
+│   │   │   │   ├── alpine-frost.jpg
+│   │   │   │   ├── amber-walnut.jpg
+│   │   │   │   ├── auburn-oak.jpg
+│   │   │   │   ├── bourbon-walnut.jpg
+│   │   │   │   ├── carbon-black.jpg
+│   │   │   │   ├── glacier-white.jpg
+│   │   │   │   ├── lunar-ash.jpg
+│   │   │   │   ├── merlot.jpg
+│   │   │   │   ├── monarch-oak.jpg
+│   │   │   │   ├── obsidian-black.jpg
+│   │   │   │   ├── sage-green.jpg
+│   │   │   │   ├── sierra-elm.jpg
+│   │   │   │   ├── silver-birch.jpg
+│   │   │   │   ├── solara.jpg
+│   │   │   │   ├── toffee-oak.jpg
+│   │   │   │   └── windsor-oak.jpg
+│   │   │   └── square/
+│   │   │       ├── alpine-frost.jpg
+│   │   │       ├── amber-walnut.jpg
+│   │   │       ├── auburn-oak.jpg
+│   │   │       ├── bourbon-walnut.jpg
+│   │   │       ├── carbon-black.jpg
+│   │   │       ├── glacier-white.jpg
+│   │   │       ├── lunar-ash.jpg
+│   │   │       ├── merlot.jpg
+│   │   │       ├── monarch-oak.jpg
+│   │   │       ├── obsidian-black.jpg
+│   │   │       ├── sage-green.jpg
+│   │   │       ├── sierra-elm.jpg
+│   │   │       ├── silver-birch.jpg
+│   │   │       ├── solara.jpg
+│   │   │       ├── toffee-oak.jpg
+│   │   │       └── windsor-oak.jpg
+│   │   └── wood/
+│   │       ├── furniture/
+│   │       │   ├── classic_parquet.png
+│   │       │   └── wood-perfocations.png
+│   │       ├── panels/
+│   │       │   ├── classic_parquet/
+│   │       │   └── wood-perfocations/
+│   │       ├── perfocations/
+│   │       │   ├── PF-NC-07_1200x2800.png
+│   │       │   ├── PF-NC-08_1200x2800.png
+│   │       │   ├── PF-NC-10_1200x2800.png
+│   │       │   ├── PF-NC-11_1200x2800.png
+│   │       │   ├── PF-NC-12_1200x2800.png
+│   │       │   ├── PF-NC-20_1200x2800.png
+│   │       │   ├── PF-NC-21_1200x2800.png
+│   │       │   ├── PF-NC-25_1200x2800.png
+│   │       │   ├── PF-NC-26_1200x2800.png
+│   │       │   └── PF-NC-29_1200x2800.png
+│   │       ├── perforations-thumbnails/
+│   │       │   ├── PF-NC-07_1200x2800.png
+│   │       │   ├── PF-NC-08_1200x2800.png
+│   │       │   ├── PF-NC-10_1200x2800.png
+│   │       │   ├── PF-NC-11_1200x2800.png
+│   │       │   ├── PF-NC-12_1200x2800.png
+│   │       │   ├── PF-NC-20_1200x2800.png
+│   │       │   ├── PF-NC-21_1200x2800.png
+│   │       │   ├── PF-NC-25_1200x2800.png
+│   │       │   ├── PF-NC-26_1200x2800.png
+│   │       │   └── PF-NC-29_1200x2800.png
+│   │       └── tpatti/
+│   │           ├── classic_parquet.png
+│   │           └── wood-prefocations.png
+│   └── technical_specification_pdfs/
+│       ├── Embossed VMT Series (PET WOOL).pdf
+│       ├── Embossed VMT Series (PET).pdf
+│       ├── Flat Panel VMT (PET WOOL).pdf
+│       └── Flat Panel VMT (PET).pdf
+├── .env
+├── .env.example
+├── chat_knowledge.py
+├── config.json
+├── config.py
+├── final_debossed_output.jpg
+├── helper.py
+├── helper2.py
+├── pattern.png
+├── requirements.txt
+├── server.py
+└── test_gemini.py

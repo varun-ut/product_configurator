@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signature Ombre — Configurator</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=Instrument+Serif:ital@0;1&display=swap');
+:root{--bg:#f5f2ee;--sf:#fff;--bd:#e2ddd7;--tx:#2a2520;--dim:#8a8480;--ac:#c4956a;--acg:#c4956a18;--ach:#d4a57a;--ok:#5cb87a}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);height:100vh;overflow:hidden;display:flex;flex-direction:column}
+header{display:flex;align-items:center;justify-content:space-between;padding:12px 24px;background:var(--sf);border-bottom:1px solid var(--bd);z-index:10}
+.logo{display:flex;align-items:baseline;gap:10px}
+.logo h1{font-family:'Instrument Serif',serif;font-size:22px;font-weight:400;color:var(--tx)}
+.logo span{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--dim);font-weight:500}
+.hdr-r{display:flex;gap:8px;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border:1px solid var(--bd);border-radius:8px;background:var(--sf);color:var(--tx);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;transition:all .15s}
+.btn:hover{border-color:var(--ac);background:var(--acg)}
+.btn-p{background:var(--ac);color:#fff;border-color:var(--ac)}
+.btn-p:hover{background:var(--ach);border-color:var(--ach)}
+.btn:disabled{opacity:.3;pointer-events:none}
+.btn svg{width:14px;height:14px}
+.app{display:flex;flex:1;overflow:hidden}
+/* Sidebar */
+.side{width:340px;min-width:340px;background:var(--sf);border-right:1px solid var(--bd);overflow-y:auto;overflow-x:hidden}
+.side::-webkit-scrollbar{width:4px}
+.side::-webkit-scrollbar-thumb{background:var(--bd);border-radius:4px}
+.sec{padding:18px 22px;border-bottom:1px solid var(--bd)}
+.sec h3{font-size:9px;text-transform:uppercase;letter-spacing:.15em;color:var(--dim);margin-bottom:12px;font-weight:600}
+/* Colors */
+.c-duo{display:flex;gap:12px;margin-bottom:14px}
+.c-box{flex:1;display:flex;flex-direction:column;gap:5px}
+.c-box label{font-size:11px;color:var(--dim);font-weight:500}
+.c-sw{height:52px;border-radius:10px;border:2px solid var(--bd);cursor:pointer;transition:border .15s;overflow:hidden;position:relative}
+.c-sw:hover{border-color:var(--ac)}
+.c-sw input{opacity:0;position:absolute;inset:0;width:100%;height:100%;cursor:pointer}
+.c-hex{font-size:9px;font-family:'DM Sans',monospace;color:var(--dim);text-align:center;margin-top:1px;text-transform:uppercase}
+/* Ombre bar */
+.ob{height:28px;border-radius:8px;border:1px solid var(--bd);margin-bottom:12px;transition:background .3s}
+/* Slider */
+.sr{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.sr label{font-size:11px;color:var(--dim)}
+.sr .v{font-size:10px;color:var(--ac);font-weight:600;min-width:30px;text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{-webkit-appearance:none;width:100%;height:3px;border-radius:2px;background:var(--bd);outline:none;margin-top:4px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--ac);cursor:pointer;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+/* Direction */
+.dir{display:flex;gap:4px;margin-bottom:12px}
+.db{flex:1;padding:6px;border:1px solid var(--bd);border-radius:7px;background:var(--sf);color:var(--dim);font-size:10px;font-weight:500;cursor:pointer;text-align:center;transition:all .15s}
+.db:hover{border-color:var(--ac)}
+.db.sel{background:var(--ac);color:#fff;border-color:var(--ac)}
+/* Pattern */
+.pg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.pc{background:var(--bg);border:2px solid var(--bd);border-radius:10px;padding:10px 6px;cursor:pointer;transition:all .15s;text-align:center;position:relative}
+.pc:hover{border-color:var(--ac);background:var(--acg)}
+.pc.sel{border-color:var(--ac);background:var(--acg);box-shadow:0 0 0 1px var(--ac)}
+.pc .pi{height:36px;display:flex;align-items:center;justify-content:center;margin-bottom:4px}
+.pc .pn{font-size:8px;color:var(--dim);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.pc.sel .pn{color:var(--ac)}
+.pc .ck{position:absolute;top:5px;right:5px;width:14px;height:14px;background:var(--ac);border-radius:50%;display:none;align-items:center;justify-content:center}
+.pc.sel .ck{display:flex}
+/* Upload */
+.upl{border:1.5px dashed var(--bd);border-radius:9px;padding:14px;text-align:center;cursor:pointer;transition:all .15s;margin-top:10px}
+.upl:hover{border-color:var(--ac);background:var(--acg)}
+.upl.ok{border-color:var(--ok);border-style:solid;background:#5cb87a08}
+.upl p{font-size:10px;color:var(--dim);line-height:1.4}
+.upl .fn{font-size:10px;color:var(--ok);font-weight:500;margin-top:4px}
+.upl input{display:none}
+/* Viewport */
+.vp{flex:1;position:relative;background:#e8e4df;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.room{position:relative;width:100%;height:100%}
+.wall-canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:1}
+.room-overlay{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:3;pointer-events:none}
+/* Loading */
+.lov{position:absolute;inset:0;background:rgba(42,37,32,.7);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:20;opacity:0;pointer-events:none;transition:opacity .2s}
+.lov.vis{opacity:1;pointer-events:auto}
+.spin{width:28px;height:28px;border:2px solid var(--bd);border-top-color:var(--ac);border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.lov .lt{color:var(--dim);font-size:10px;margin-top:8px}
+/* Status bar */
+.sbar{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:8px;background:rgba(255,255,255,.92);border:1px solid var(--bd);border-radius:10px;padding:6px 14px;z-index:5;backdrop-filter:blur(8px)}
+.sbar .si{font-size:10px;color:var(--dim);display:flex;align-items:center;gap:4px}
+.sbar .si .d{width:5px;height:5px;border-radius:50%}
+.sbar .si.ok .d{background:var(--ok)}
+.sbar .si.no .d{background:var(--bd)}
+/* Lighting section */
+.lp-grid{display:flex;gap:4px;position:relative;z-index:2}
+.lp-grid .btn{flex:1;justify-content:center;font-size:9px;padding:5px}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><h1>Signature Ombre</h1><span>UniAcoustics Configurator</span></div>
+  <div class="hdr-r">
+    <button class="btn" id="bsave"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1-2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Save</button>
+    <button class="btn btn-p" id="bdl" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download</button>
+  </div>
+</header>
+<div class="app">
+<aside class="side">
+  <!-- Room Setup (hidden if auto-loaded, shown as fallback) -->
+  <div class="sec" id="zr-sec" style="display:none">
+    <h3>Room Setup</h3>
+    <div class="upl" id="zr" onclick="document.getElementById('ir').click()" style="padding:10px">
+      <p>Upload room setup PNG<br><small>Black wall area = panel zone</small></p>
+      <input type="file" id="ir" accept="image/*">
+    </div>
+  </div>
+  <!-- Product Info -->
+  <div class="sec">
+    <h3>Product</h3>
+    <div style="font-size:13px;font-weight:500;margin-bottom:4px">Signature Ombre</div>
+    <div style="font-size:11px;color:var(--dim)">1200 × 2800 mm · 3-Panel Wall Setup</div>
+  </div>
+  <!-- Ombre Colors -->
+  <div class="sec">
+    <h3>Ombre Colors</h3>
+    <div class="c-duo">
+      <div class="c-box">
+        <label>Base Color</label>
+        <div class="c-sw" id="sw1" style="background:#C47A4A"><input type="color" id="c1" value="#C47A4A"></div>
+        <div class="c-hex" id="h1">#C47A4A</div>
+      </div>
+      <div class="c-box">
+        <label>Overlay Color</label>
+        <div class="c-sw" id="sw2" style="background:#6B3A2A"><input type="color" id="c2" value="#6B3A2A"></div>
+        <div class="c-hex" id="h2">#6B3A2A</div>
+      </div>
+    </div>
+    <div class="ob" id="ob"></div>
+    <div class="sr"><label>Ombre Blend</label><span class="v" id="vb">50%</span></div>
+    <input type="range" id="rb" min="10" max="90" step="1" value="50">
+    <div class="dir" style="margin-top:12px">
+      <div class="db sel" data-d="vertical">Vertical</div>
+      <div class="db" data-d="horizontal">Horizontal</div>
+      <div class="db" data-d="radial">Radial</div>
+    </div>
+  </div>
+  <!-- Emboss Pattern -->
+  <div class="sec">
+    <h3>Emboss Pattern</h3>
+    <div class="pg" id="pg"></div>
+    <div class="upl" id="zu" onclick="document.getElementById('iu').click()" style="padding:10px">
+      <p>Or upload OBJ manually<br><small>Fallback if auto-load fails</small></p>
+      <input type="file" id="iu" accept=".obj,.fbx,.glb,.gltf,.3ds">
+    </div>
+  </div>
+  <!-- Lighting -->
+  <div class="sec">
+    <h3>Lighting</h3>
+    <div class="sr"><label>Key Intensity</label><span class="v" id="vki">1.2</span></div>
+    <input type="range" id="rki" min="0" max="3" step="0.05" value="1.2">
+    <div class="sr" style="margin-top:8px"><label>Groove Angle</label><span class="v" id="vkh">25°</span></div>
+    <input type="range" id="rkh" min="5" max="80" step="1" value="25">
+    <div class="sr" style="margin-top:8px"><label>Ambient</label><span class="v" id="vai">0.10</span></div>
+    <input type="range" id="rai" min="0" max="0.5" step="0.02" value="0.1">
+    <div class="lp-grid" style="margin-top:10px">
+      <button class="btn" data-lp="studio" type="button">Studio</button>
+      <button class="btn" data-lp="dramatic" type="button">Dramatic</button>
+      <button class="btn" data-lp="groove" type="button">Groove</button>
+    </div>
+  </div>
+  <!-- Material -->
+  <div class="sec">
+    <h3>Material</h3>
+    <div class="sr"><label>Roughness</label><span class="v" id="vro">0.65</span></div>
+    <input type="range" id="rro" min="0" max="1" step="0.05" value="0.65">
+    <div class="sr" style="margin-top:8px"><label>Metalness</label><span class="v" id="vme">0.00</span></div>
+    <input type="range" id="rme" min="0" max="0.5" step="0.02" value="0">
+  </div>
+</aside>
+
+<!-- Room Viewport -->
+<div class="vp" id="vp">
+  <div class="room" id="room">
+    <canvas id="wc" class="wall-canvas"></canvas>
+    <img id="ro" class="room-overlay" src="" alt="" style="display:none">
+  </div>
+  <div class="sbar">
+    <div class="si no" id="sm"><div class="d"></div><span>No pattern loaded</span></div>
+  </div>
+  <div class="lov" id="lov"><div class="spin"></div><div class="lt" id="lt"></div></div>
+</div>
+</div>
+
+<!-- Offscreen 3D renderer canvas (hidden) -->
+<canvas id="tc" style="display:none"></canvas>
+
+<!-- CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fflate@0.6.9/umd/index.js"></script>
+<script>if(typeof fflate!=='undefined')window.fflate=fflate;</script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/TDSLoader.js"></script>
+
+<script>
+const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
+
+// ═══════════════════════════════════════════════════════
+// ██  CONFIGURATION — Update these paths for your setup ██
+// ═══════════════════════════════════════════════════════
+const CONFIG = {
+  // Room setup background image (black wall area = panel zone)
+  roomSetupUrl: '/images/room-setups/Colour_Core_Setup.png',
+
+  // OBJ model URLs for each emboss pattern
+  // Update these paths to point to your hosted OBJ files
+  models: {
+    ribbed25:    '/models/emboss/ribbed-25.obj',
+    ribbed45:    '/models/emboss/ribbed-45.obj',
+    ribbed60:    '/models/emboss/ribbed-60.obj',
+    ribbedduo:   '/models/emboss/ribbed-duo.obj',
+    tapered:     '/models/emboss/tapered.obj',
+    fluxribbed:  '/models/emboss/flux-ribbed.obj',
+  }
+};
+// ═══════════════════════════════════════════════════════
+
+const PAT=[
+  {id:'ribbed25',name:'Ribbed 25',obj:null,loading:false,loaded:false},
+  {id:'ribbed45',name:'Ribbed 45',obj:null,loading:false,loaded:false},
+  {id:'ribbed60',name:'Ribbed 60',obj:null,loading:false,loaded:false},
+  {id:'ribbedduo',name:'Ribbed Duo',obj:null,loading:false,loaded:false},
+  {id:'tapered',name:'Tapered',obj:null,loading:false,loaded:false},
+  {id:'fluxribbed',name:'Flux Ribbed',obj:null,loading:false,loaded:false},
+];
+
+const S={base:'#C47A4A',over:'#6B3A2A',blend:50,dir:'vertical',pat:0,
+  model:null,bounds:null,scene:null,cam:null,ren:null,lights:{},
+  tex:null,texCv:null,rough:0.65,metal:0,roomImg:null,roomReady:false};
+
+const patSvg={
+  ribbed25:'M4,2v20M8,2v20M12,2v20M16,2v20M20,2v20',
+  ribbed45:'M3,2v20M7,2v20M11,2v20M15,2v20M19,2v20M21,2v20',
+  ribbed60:'M2,2v20M6,2v20M10,2v20M18,2v20M22,2v20',
+  ribbedduo:'M3,2v20M5,2v20M10,2v20M12,2v20M17,2v20M19,2v20',
+  tapered:'M4,2v20M8,4v16M12,6v12M16,4v16M20,2v20',
+  fluxribbed:'M3,2v20M6,2v20M10,2v20M14,2v20M17,2v20M21,2v20',
+};
+
+// ── Room Setup — Auto-loads from CONFIG.roomSetupUrl ──
+function loadRoomSetup(){
+  const img=new Image();
+  img.crossOrigin='anonymous';
+  img.onload=()=>{
+    processRoomImage(img);
+  };
+  img.onerror=()=>{
+    console.warn('Room setup image not found at:', CONFIG.roomSetupUrl);
+    console.log('Falling back to manual upload.');
+    $('#zr-sec').style.display='';
+  };
+  img.src=CONFIG.roomSetupUrl;
+}
+
+function processRoomImage(img){
+  const cv=document.createElement('canvas');cv.width=img.width;cv.height=img.height;
+  const ctx=cv.getContext('2d');ctx.drawImage(img,0,0);
+  const d=ctx.getImageData(0,0,cv.width,cv.height),px=d.data;
+  for(let i=0;i<px.length;i+=4){if(px[i]<15&&px[i+1]<15&&px[i+2]<15)px[i+3]=0;}
+  ctx.putImageData(d,0,0);
+  const overlay=$('#ro');
+  overlay.onload=()=>{overlay.style.display='block'};
+  overlay.src=cv.toDataURL('image/png');
+  S.roomImg=img;S.roomReady=true;
+  sizeRoom();
+  if(S.model)renderAndTile();else renderPlainOmbreWall();
+  $('#zr-sec').style.display='none';
+}
+
+function loadRoomFromFile(file){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=new Image();
+    img.onload=()=>processRoomImage(img);
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Fetch OBJ model from URL for a pattern ──
+function fetchPatternModel(idx){
+  const pat=PAT[idx];
+  if(pat.loaded||pat.loading)return; // already loaded or in progress
+  const url=CONFIG.models[pat.id];
+  if(!url){console.warn('No model URL for pattern:',pat.id);return;}
+
+  pat.loading=true;
+  updatePatternCard(idx,'loading');
+  loading(true,'Loading '+pat.name+'…');
+
+  fetch(url)
+    .then(res=>{
+      if(!res.ok)throw new Error(`HTTP ${res.status}: ${url}`);
+      const ct=res.headers.get('content-type')||'';
+      // Detect format from URL extension
+      const ext=url.split('.').pop().toLowerCase();
+      if(ext==='obj')return res.text().then(text=>({text,ext:'obj'}));
+      else return res.arrayBuffer().then(buf=>({buf,ext}));
+    })
+    .then(data=>{
+      let group;
+      if(data.ext==='obj'){
+        group=new THREE.OBJLoader().parse(data.text);
+        group.traverse(c=>{if(c.isMesh){c.geometry.computeVertexNormals();c.material=new THREE.MeshStandardMaterial({color:0xbbbbbb,side:THREE.DoubleSide})}});
+      }else if(data.ext==='fbx'){
+        group=extr(new THREE.FBXLoader().parse(data.buf,''));
+      }else if(data.ext==='glb'||data.ext==='gltf'){
+        // GLTFLoader.parse is async
+        return new Promise((resolve,reject)=>{
+          new THREE.GLTFLoader().parse(data.buf,'',(gltf)=>{
+            resolve(extr(gltf.scene));
+          },(err)=>reject(err));
+        });
+      }else if(data.ext==='3ds'){
+        group=extr(new THREE.TDSLoader().parse(data.buf,''));
+      }
+      return group;
+    })
+    .then(group=>{
+      pat.obj=group;pat.loading=false;pat.loaded=true;
+      updatePatternCard(idx,'loaded');
+      applyModel(idx);
+    })
+    .catch(err=>{
+      pat.loading=false;
+      updatePatternCard(idx,'error');
+      loading(false);
+      console.error('Failed to load model for '+pat.name+':', err);
+      // Show upload zone as fallback
+      alert('Could not auto-load '+pat.name+' model from:\n'+url+'\n\nPlease upload the OBJ file manually.');
+    });
+}
+
+function updatePatternCard(idx,status){
+  const card=$$('.pc')[idx];
+  if(!card)return;
+  const nameEl=card.querySelector('.pn');
+  if(status==='loading'){nameEl.style.color='var(--ac)';nameEl.textContent=PAT[idx].name+' ⏳';}
+  else if(status==='loaded'){nameEl.style.color='var(--ok)';nameEl.textContent=PAT[idx].name+' ✓';}
+  else if(status==='error'){nameEl.style.color='#e05252';nameEl.textContent=PAT[idx].name+' ✗';}
+  else{nameEl.style.color='';nameEl.textContent=PAT[idx].name;}
+}
+
+function renderPlainOmbreWall(){
+  const wc=$('#wc'),ctx=wc.getContext('2d');
+  const cv=genOmbre();
+  const W=wc.width,H=wc.height,pw=Math.floor(W/3);
+  ctx.clearRect(0,0,W,H);
+  for(let i=0;i<3;i++)ctx.drawImage(cv,i*pw,0,pw,H);
+}
+
+function sizeRoom(){
+  const vp=$('#vp'),rm=$('#room');
+  const vw=vp.clientWidth,vh=vp.clientHeight;
+  // Room image is square (2000x2000), fit it
+  const sz=Math.min(vw,vh);
+  rm.style.width=sz+'px';rm.style.height=sz+'px';
+  const wc=$('#wc');wc.width=2000;wc.height=2000;
+  wc.style.width=sz+'px';wc.style.height=sz+'px';
+}
+
+// ── Ombre Texture ──
+function genOmbre(){
+  const w=512,h=1024;
+  if(!S.texCv){S.texCv=document.createElement('canvas');S.texCv.width=w;S.texCv.height=h;}
+  const c=S.texCv,ctx=c.getContext('2d'),pct=S.blend/100;
+  if(S.dir==='vertical'){const g=ctx.createLinearGradient(0,0,0,h);g.addColorStop(0,S.base);g.addColorStop(pct,S.base);g.addColorStop(1,S.over);ctx.fillStyle=g;ctx.fillRect(0,0,w,h);}
+  else if(S.dir==='horizontal'){const g=ctx.createLinearGradient(0,0,w,0);g.addColorStop(0,S.base);g.addColorStop(pct,S.base);g.addColorStop(1,S.over);ctx.fillStyle=g;ctx.fillRect(0,0,w,h);}
+  else{const cx=w/2,cy=h*pct,r=Math.max(w,h);const g=ctx.createRadialGradient(cx,cy,0,cx,cy,r);g.addColorStop(0,S.base);g.addColorStop(.5,S.base);g.addColorStop(1,S.over);ctx.fillStyle=g;ctx.fillRect(0,0,w,h);}
+  // Subtle noise
+  const img=ctx.getImageData(0,0,w,h),d=img.data;
+  for(let i=0;i<d.length;i+=4){const n=(Math.random()-.5)*3;d[i]+=n;d[i+1]+=n;d[i+2]+=n;}
+  ctx.putImageData(img,0,0);
+  updateBar();
+  return c;
+}
+function updateBar(){
+  const b=S.base,o=S.over,p=S.blend;
+  if(S.dir==='radial')$('#ob').style.background=`radial-gradient(circle at 50% ${p}%,${b} 0%,${b} 30%,${o} 100%)`;
+  else $('#ob').style.background=`linear-gradient(${S.dir==='horizontal'?'to right':'to bottom'},${b} 0%,${b} ${p}%,${o} 100%)`;
+}
+
+// ── 3D Engine (offscreen) ──
+function initEngine(){
+  S.ren=new THREE.WebGLRenderer({canvas:$('#tc'),antialias:true,preserveDrawingBuffer:true,alpha:true});
+  S.ren.setPixelRatio(1);S.ren.outputEncoding=THREE.sRGBEncoding;
+  S.ren.toneMapping=THREE.ACESFilmicToneMapping;S.ren.toneMappingExposure=1.1;
+  S.ren.shadowMap.enabled=true;S.ren.shadowMap.type=THREE.PCFSoftShadowMap;
+  S.ren.setClearColor(0,0);
+  S.scene=new THREE.Scene();
+  S.cam=new THREE.OrthographicCamera(-1,1,1,-1,.001,100);
+  S.lights.amb=new THREE.AmbientLight(0x404050,0.1);S.scene.add(S.lights.amb);
+  S.lights.key=new THREE.DirectionalLight(0xffffff,1.2);S.lights.key.castShadow=true;S.lights.key.shadow.mapSize.set(2048,2048);
+  S.scene.add(S.lights.key);S.scene.add(S.lights.key.target);
+  S.lights.fill=new THREE.DirectionalLight(0xb0c4de,0.3);S.scene.add(S.lights.fill);S.scene.add(S.lights.fill.target);
+}
+
+function updateLights(){
+  const h=(parseFloat($('#rkh')?.value||25)*Math.PI)/180,d=5,
+    t=S.bounds?S.bounds.center:new THREE.Vector3();
+  S.lights.key.position.set(t.x+d*Math.cos(h)*.3,t.y+d*Math.sin(h),t.z+d*Math.cos(h));
+  S.lights.key.target.position.copy(t);
+  S.lights.fill.position.set(t.x-d*.7,t.y+d*.3,t.z+d*.5);S.lights.fill.target.position.copy(t);
+}
+
+// ── Render panel and tile on wall ──
+let _uvDone=false,_renderTimer=null;
+function renderAndTile(){
+  if(!S.model||!S.bounds)return;
+  if(_renderTimer)clearTimeout(_renderTimer);
+  _renderTimer=setTimeout(()=>{
+    // 1. Generate ombre texture
+    const cv=genOmbre();
+    if(!S.tex){S.tex=new THREE.CanvasTexture(cv);S.tex.encoding=THREE.sRGBEncoding;S.tex.wrapS=S.tex.wrapT=THREE.RepeatWrapping;}
+    else S.tex.image=cv;
+    S.tex.needsUpdate=true;
+
+    // 2. Apply to model
+    S.model.traverse(c=>{if(!c.isMesh)return;
+      if(!c.userData._uvOk){projUVs(c.geometry);c.userData._uvOk=true;}
+      const m=c.material;
+      if(m&&m.isMeshStandardMaterial&&m.map===S.tex){m.roughness=S.rough;m.metalness=S.metal;m.needsUpdate=true;}
+      else{const nm=new THREE.MeshStandardMaterial({map:S.tex,roughness:S.rough,metalness:S.metal,side:THREE.DoubleSide});if(m)m.dispose();c.material=nm;}
+    });
+
+    // 3. Setup camera
+    const b=S.bounds,da=b.da,fw=b.fW,fh=b.fH,pad=1.02;
+    S.cam.left=-fw*pad/2;S.cam.right=fw*pad/2;S.cam.top=fh*pad/2;S.cam.bottom=-fh*pad/2;
+    S.cam.updateProjectionMatrix();
+    const ct=b.center;
+    if(da==='z'){S.cam.position.set(ct.x,ct.y,ct.z+b.dv+2);S.cam.up.set(0,1,0);}
+    else if(da==='x'){S.cam.position.set(ct.x+b.dv+2,ct.y,ct.z);S.cam.up.set(0,1,0);}
+    else{S.cam.position.set(ct.x,ct.y+b.dv+2,ct.z);S.cam.up.set(0,0,-1);}
+    S.cam.lookAt(ct);
+    updateLights();
+
+    // 4. Render at moderate resolution
+    const rw=800,rh=Math.round(800*fh/fw);
+    S.ren.setSize(rw,rh);S.scene.background=null;
+    S.ren.render(S.scene,S.cam);
+
+    // 5. Auto crop
+    const tmp=document.createElement('canvas');tmp.width=rw;tmp.height=rh;
+    tmp.getContext('2d').drawImage(S.ren.domElement,0,0);
+    const panel=autoCrop(tmp);
+
+    // 6. Tile 3 panels on wall canvas
+    tileOnWall(panel);
+  },50);
+}
+
+function tileOnWall(panelCv){
+  const wc=$('#wc'),ctx=wc.getContext('2d');
+  const W=2000,H=2000;
+  ctx.clearRect(0,0,W,H);
+  // Wall area fills the entire 2000x2000 behind the furniture
+  // 3 panels side by side, each panel is tall (1200x2800mm ratio ≈ 0.43 aspect)
+  const pw=Math.floor(W/3),ph=H; // each panel slot
+  for(let i=0;i<3;i++){
+    ctx.drawImage(panelCv,i*pw,0,pw,ph);
+  }
+}
+
+function autoCrop(cv){
+  const w=cv.width,h=cv.height,ctx=cv.getContext('2d'),d=ctx.getImageData(0,0,w,h).data;
+  let t=h,l=w,r=0,b=0;
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){if(d[(y*w+x)*4+3]>10){if(y<t)t=y;if(y>b)b=y;if(x<l)l=x;if(x>r)r=x;}}
+  if(r<=l||b<=t)return cv;
+  const cw=r-l+1,ch=b-t+1,nc=document.createElement('canvas');nc.width=cw;nc.height=ch;
+  nc.getContext('2d').drawImage(cv,l,t,cw,ch,0,0,cw,ch);return nc;
+}
+
+// ── UV Projection ──
+function projUVs(geo){
+  const pa=geo.attributes.position.array,n=geo.attributes.position.count,uv=new Float32Array(n*2);
+  let mx=Infinity,Mx=-Infinity,my=Infinity,My=-Infinity,mz=Infinity,Mz=-Infinity;
+  S.model.traverse(c=>{if(!c.isMesh)return;const a=c.geometry.attributes.position.array;
+    for(let i=0;i<a.length;i+=3){if(a[i]<mx)mx=a[i];if(a[i]>Mx)Mx=a[i];if(a[i+1]<my)my=a[i+1];if(a[i+1]>My)My=a[i+1];if(a[i+2]<mz)mz=a[i+2];if(a[i+2]>Mz)Mz=a[i+2];}});
+  const da=S.bounds?.da||'z',ix=1/(Mx-mx||1),iy=1/(My-my||1),iz=1/(Mz-mz||1);
+  for(let i=0;i<n;i++){
+    if(da==='z'){uv[i*2]=(pa[i*3]-mx)*ix;uv[i*2+1]=(pa[i*3+1]-my)*iy;}
+    else if(da==='x'){uv[i*2]=(pa[i*3+2]-mz)*iz;uv[i*2+1]=(pa[i*3+1]-my)*iy;}
+    else{uv[i*2]=(pa[i*3]-mx)*ix;uv[i*2+1]=(pa[i*3+2]-mz)*iz;}
+  }
+  geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+}
+
+// ── Model Loading ──
+function loading(s,t){$('#lov').classList.toggle('vis',s);$('#lt').textContent=t||'';}
+
+function loadFile(file,idx){
+  const ext=file.name.split('.').pop().toLowerCase();loading(true,`Loading ${ext.toUpperCase()}…`);
+  const reader=new FileReader();reader.onerror=()=>{loading(false);alert('Read error')};
+  const done=g=>{PAT[idx].obj=g;
+    $('#zu').classList.add('ok');let fn=$('#zu').querySelector('.fn');if(fn)fn.remove();
+    fn=document.createElement('div');fn.className='fn';fn.textContent=file.name+' → '+PAT[idx].name;$('#zu').appendChild(fn);
+    applyModel(idx);};
+  if(ext==='obj'){reader.onload=e=>{try{const g=new THREE.OBJLoader().parse(e.target.result);g.traverse(c=>{if(c.isMesh){c.geometry.computeVertexNormals();c.material=new THREE.MeshStandardMaterial({color:0xbbbbbb,side:THREE.DoubleSide})}});done(g)}catch(er){loading(false);alert(er.message)}};reader.readAsText(file);}
+  else if(ext==='fbx'){reader.onload=e=>{try{done(extr(new THREE.FBXLoader().parse(e.target.result,'')))}catch(er){loading(false);alert(er.message)}};reader.readAsArrayBuffer(file);}
+  else if(ext==='glb'||ext==='gltf'){reader.onload=e=>{try{new THREE.GLTFLoader().parse(e.target.result,'',(gl)=>{try{done(extr(gl.scene))}catch(er){loading(false);alert(er.message)}},(er)=>{loading(false);alert(er.message||er)})}catch(er){loading(false);alert(er.message)}};reader.readAsArrayBuffer(file);}
+  else if(ext==='3ds'){reader.onload=e=>{try{done(extr(new THREE.TDSLoader().parse(e.target.result,'')))}catch(er){loading(false);alert(er.message)}};reader.readAsArrayBuffer(file);}
+  else{loading(false);alert('Unsupported: '+ext)}
+}
+function extr(obj){
+  const g=new THREE.Group(),ms=[];obj.traverse(c=>{if(c.isMesh)ms.push(c)});
+  for(const c of ms){c.updateWorldMatrix(true,false);const m4=c.matrixWorld;
+    const det=m4.elements[0]*(m4.elements[5]*m4.elements[10]-m4.elements[6]*m4.elements[9])-m4.elements[1]*(m4.elements[4]*m4.elements[10]-m4.elements[6]*m4.elements[8])+m4.elements[2]*(m4.elements[4]*m4.elements[9]-m4.elements[5]*m4.elements[8]);
+    const geo=c.geometry.clone();geo.applyMatrix4(m4);geo.computeVertexNormals();
+    if(det<0){const idx=geo.index;if(idx){const a=idx.array;for(let i=0;i<a.length;i+=3){const t=a[i+1];a[i+1]=a[i+2];a[i+2]=t;}idx.needsUpdate=true;geo.computeVertexNormals();}}
+    g.add(new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:0xbbbbbb,side:THREE.DoubleSide})));
+  }return g;
+}
+
+function applyModel(idx){
+  loading(true,'Preparing model…');
+  const group=PAT[idx].obj;if(!group){loading(false);return;}
+  if(S.model)S.scene.remove(S.model);
+  const obj=group.clone(true);
+  const box=new THREE.Box3().setFromObject(obj),cen=box.getCenter(new THREE.Vector3()),sz=box.getSize(new THREE.Vector3()),mx=Math.max(sz.x,sz.y,sz.z),sc=2/mx;
+  obj.scale.multiplyScalar(sc);obj.position.sub(cen.multiplyScalar(sc));
+  S.model=obj;S.scene.add(obj);
+  const nb=new THREE.Box3().setFromObject(obj);
+  S.bounds={box:nb,center:nb.getCenter(new THREE.Vector3()),size:nb.getSize(new THREE.Vector3())};
+  const dims=[{a:'x',v:S.bounds.size.x},{a:'y',v:S.bounds.size.y},{a:'z',v:S.bounds.size.z}].sort((a,b)=>a.v-b.v);
+  S.bounds.da=dims[0].a;S.bounds.fW=Math.max(dims[1].v,dims[2].v);S.bounds.fH=Math.min(dims[1].v,dims[2].v);S.bounds.dv=dims[0].v;
+  // Reset UV flag
+  obj.traverse(c=>{if(c.isMesh)c.userData._uvOk=false;});
+  $('#sm').className='si ok';$('#sm').querySelector('span').textContent=PAT[idx].name+' loaded';
+  $('#bdl').disabled=false;
+  renderAndTile();loading(false);
+}
+
+// ── Light Presets ──
+function lp(p){const pr={studio:{ki:1.2,kh:45,ai:.2},dramatic:{ki:1.8,kh:20,ai:.05},groove:{ki:1.5,kh:12,ai:.04}};
+  const v=pr[p];if(!v)return;$('#rki').value=v.ki;$('#vki').textContent=v.ki.toFixed(1);S.lights.key.intensity=v.ki;
+  $('#rkh').value=v.kh;$('#vkh').textContent=v.kh+'°';$('#rai').value=v.ai;$('#vai').textContent=v.ai.toFixed(2);S.lights.amb.intensity=v.ai;renderAndTile();}
+
+// ── Download ──
+function downloadRoom(){
+  const wc=$('#wc'),ro=$('#ro');
+  const cv=document.createElement('canvas');cv.width=2000;cv.height=2000;const ctx=cv.getContext('2d');
+  ctx.drawImage(wc,0,0);
+  // Draw overlay on top
+  if(ro.complete&&ro.naturalWidth)ctx.drawImage(ro,0,0,2000,2000);
+  const url=cv.toDataURL('image/png');
+  document.getElementById('dlm')?.remove();
+  const ov=document.createElement('div');ov.id='dlm';ov.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(42,37,32,.85);display:flex;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(8px)';
+  ov.innerHTML=`<div style="background:#fff;border-radius:14px;padding:24px;max-width:640px;width:100%;text-align:center">
+    <h3 style="font-family:'Instrument Serif',serif;font-size:18px;color:#2a2520;margin-bottom:4px;font-weight:400">Room View Exported</h3>
+    <p style="font-size:10px;color:#8a8480;margin-bottom:14px">2000 × 2000 px · Signature Ombre</p>
+    <a href="${url}" download="SignatureOmbre_${PAT[S.pat].name.replace(/\s+/g,'_')}_${S.base.replace('#','')}_${S.over.replace('#','')}.png" style="display:block;cursor:pointer;margin-bottom:14px"><img src="${url}" style="max-width:100%;max-height:40vh;border:1px solid #e2ddd7;border-radius:8px"></a>
+    <p style="font-size:11px;color:#8a8480;margin-bottom:12px">Click image to download</p>
+    <button style="padding:7px 20px;border-radius:7px;border:1px solid #e2ddd7;background:#c4956a;color:#fff;font-family:'DM Sans';font-size:12px;font-weight:500;cursor:pointer" onclick="this.closest('#dlm').remove()">Done</button></div>`;
+  document.body.appendChild(ov);ov.addEventListener('click',e=>{if(e.target===ov)ov.remove()});
+}
+
+// ── Events ──
+document.addEventListener('DOMContentLoaded',()=>{
+  initEngine();updateBar();
+  window.addEventListener('resize',sizeRoom);
+  sizeRoom();
+  renderPlainOmbreWall();
+  // Auto-load room setup
+  loadRoomSetup();
+  // Room setup manual upload (fallback)
+  $('#ir').addEventListener('change',e=>{
+    if(e.target.files[0]){
+      loadRoomFromFile(e.target.files[0]);
+      $('#zr').classList.add('ok');$('#zr').querySelector('p').innerHTML='<strong>Room loaded</strong>';
+    }
+  });
+  const zr=$('#zr');
+  zr.addEventListener('dragover',e=>{e.preventDefault();zr.style.borderColor='var(--ac)'});
+  zr.addEventListener('dragleave',()=>zr.style.borderColor='');
+  zr.addEventListener('drop',e=>{e.preventDefault();zr.style.borderColor='';
+    if(e.dataTransfer.files[0]){loadRoomFromFile(e.dataTransfer.files[0]);$('#zr').classList.add('ok');$('#zr').querySelector('p').innerHTML='<strong>Room loaded</strong>';}
+  });
+  // Pattern grid
+  PAT.forEach((p,i)=>{
+    const c=document.createElement('div');c.className='pc'+(i===0?' sel':'');
+    c.innerHTML=`<div class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" style="width:8px;height:8px"><polyline points="20 6 9 17 4 12"/></svg></div><div class="pi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="width:26px;height:26px;color:var(--dim)"><path d="${patSvg[p.id]||patSvg.ribbed25}"/></svg></div><div class="pn">${p.name}</div>`;
+    c.addEventListener('click',()=>{
+      $$('.pc').forEach(x=>x.classList.remove('sel'));c.classList.add('sel');S.pat=i;
+      if(PAT[i].loaded&&PAT[i].obj){applyModel(i);}
+      else if(!PAT[i].loading){fetchPatternModel(i);}
+    });
+    $('#pg').appendChild(c);
+  });
+  // Colors
+  let _d=null;
+  const upd=()=>{S.base=$('#c1').value;S.over=$('#c2').value;$('#sw1').style.background=S.base;$('#sw2').style.background=S.over;$('#h1').textContent=S.base.toUpperCase();$('#h2').textContent=S.over.toUpperCase();if(_d)clearTimeout(_d);_d=setTimeout(()=>{if(S.model)renderAndTile();else renderPlainOmbreWall();},50);};
+  $('#c1').addEventListener('input',upd);$('#c2').addEventListener('input',upd);
+  $('#rb').addEventListener('input',e=>{S.blend=parseInt(e.target.value);$('#vb').textContent=S.blend+'%';if(_d)clearTimeout(_d);_d=setTimeout(()=>{if(S.model)renderAndTile();else renderPlainOmbreWall();},50);});
+  $$('.db').forEach(b=>b.addEventListener('click',()=>{$$('.db').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');S.dir=b.dataset.d;if(S.model)renderAndTile();else renderPlainOmbreWall();}));
+  // Upload
+  $('#iu').addEventListener('change',e=>{if(e.target.files[0])loadFile(e.target.files[0],S.pat);e.target.value='';});
+  const zu=$('#zu');zu.addEventListener('dragover',e=>{e.preventDefault();zu.style.borderColor='var(--ac)'});zu.addEventListener('dragleave',()=>zu.style.borderColor='');
+  zu.addEventListener('drop',e=>{e.preventDefault();zu.style.borderColor='';if(e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0],S.pat)});
+  // Lighting
+  const sl=(id,vid,dec,cb)=>{$(id).addEventListener('input',e=>{$(vid).textContent=dec==='d'?e.target.value+'°':parseFloat(e.target.value).toFixed(dec);if(cb)cb(e);})};
+  sl('#rki','#vki',1,e=>{S.lights.key.intensity=parseFloat(e.target.value);renderAndTile()});
+  sl('#rkh','#vkh','d',()=>renderAndTile());
+  sl('#rai','#vai',2,e=>{S.lights.amb.intensity=parseFloat(e.target.value);renderAndTile()});
+  sl('#rro','#vro',2,e=>{S.rough=parseFloat(e.target.value);renderAndTile()});
+  sl('#rme','#vme',2,e=>{S.metal=parseFloat(e.target.value);renderAndTile()});
+  $$('[data-lp]').forEach(b=>b.addEventListener('click',()=>lp(b.dataset.lp)));
+  // Download
+  $('#bdl').addEventListener('click',downloadRoom);
+  // Save (placeholder)
+  $('#bsave').addEventListener('click',()=>{alert('Configuration:\n\nBase: '+S.base+'\nOverlay: '+S.over+'\nBlend: '+S.blend+'%\nDirection: '+S.dir+'\nPattern: '+PAT[S.pat].name+'\n\nSave integration depends on your backend.')});
+});
+</script>
+</body>
+</html>

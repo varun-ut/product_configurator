@@ -1,5 +1,11 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# Auth — local SQLite DB (users + OTPs). Never commit; recreated on backend boot.
+backend/auth.db
+backend/auth.db-journal
+backend/auth.db-wal
+backend/auth.db-shm
+
 # IDE and editors
 .idea/
 .vscode/
@@ -66,7 +72,11 @@ chainlit.md
 # Data and databases
 agenthub/agents/youtube/db
 
+
 # Archive files and large assets
+# Backend static assets — served at runtime, not stored in repo
+backend/static/
+
 **/*.zip
 **/*.tar.gz
 **/*.tar
@@ -87,3 +97,20 @@ android-sdk/ -e
 # Environment files
 *.env
 *.env.*
+
+# Claude Code scratch worktrees — never belong in the repo.
+# NOTE: three of these are orphaned (their .git files point at a stale doubled
+# path, D:/VARUN/Projects/product_configurator/product_configurator/...), which
+# makes an unscoped `git status` abort. This ignore rule does NOT fix that —
+# use `git status -- <path>` until those directories are removed by hand.
+.claude/worktrees/
+
+# Analytics database — real user event data (auth.db is already ignored above;
+# this one was an oversight). Databases do not belong in the repo.
+backend/analytics.db
+
+# Chatbot request logs (token counts + hashed IPs, written per day).
+backend/chatbot_logs/
+
+# Separate static content site — ~114 MB of assets, built and deployed on its own.
+content-site/

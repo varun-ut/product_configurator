@@ -1,0 +1,206 @@
+{
+  "selector_flow": {
+    "description": "Guided panel recommendation flow. The chatbot asks these questions in order, then scores products based on user answers.",
+    "questions": [
+      {
+        "id": "q1_space_type",
+        "order": 1,
+        "question": "What type of space are you treating?",
+        "options": [
+          {"value": "office_boardroom", "label": "Office / Boardroom / Conference Room", "priorities": ["speech_clarity", "mid_frequency"]},
+          {"value": "home_theatre_studio", "label": "Home Theatre / Recording / Rehearsal Studio", "priorities": ["max_absorption", "broad_spectrum"]},
+          {"value": "hospitality", "label": "Hotel / Restaurant / Lounge", "priorities": ["design_led", "fire_rating_high"]},
+          {"value": "public_venue", "label": "Airport / Public Lounge / Gallery", "priorities": ["fire_rating_high", "design_led", "durability"]},
+          {"value": "wellness_meditation", "label": "Meditation / Wellness / Spiritual", "priorities": ["design_led", "mid_frequency"]},
+          {"value": "brand_experience", "label": "Brand Centre / Experience Centre / Retail", "priorities": ["branded_print", "design_led"]},
+          {"value": "residential", "label": "Home / Residential", "priorities": ["design_led", "cost_effective"]}
+        ]
+      },
+      {
+        "id": "q2_acoustic_priority",
+        "order": 2,
+        "question": "What is the main acoustic goal?",
+        "options": [
+          {"value": "max_absorption", "label": "Maximum absorption — kill echo and reverb", "priorities": ["high_nrc"]},
+          {"value": "balanced", "label": "Balance of absorption and natural room feel", "priorities": ["mid_nrc", "diffusion"]},
+          {"value": "design_first", "label": "Design is primary, acoustic is a bonus", "priorities": ["design_led", "low_to_mid_nrc_ok"]}
+        ]
+      },
+      {
+        "id": "q3_aesthetic_preference",
+        "order": 3,
+        "question": "What finish are you looking for?",
+        "options": [
+          {"value": "printed_custom", "label": "Custom printed artwork / branding / photography", "product_hint": "flat"},
+          {"value": "sculptural_3d", "label": "Sculptural 3D surface relief", "product_hint": "embossed"},
+          {"value": "wood_fabric", "label": "Wood / fabric / textile look", "product_hint": "any"},
+          {"value": "marble_stone", "label": "Marble / stone look", "product_hint": "any"},
+          {"value": "no_preference", "label": "No strong preference yet", "product_hint": "any"}
+        ]
+      },
+      {
+        "id": "q4_fire_rating",
+        "order": 4,
+        "question": "Does the project require a specific fire rating?",
+        "options": [
+          {"value": "class_b_required", "label": "Class B (stricter — airports, hospitals, regulated public venues)", "filter": {"en_13501": "B"}},
+          {"value": "class_c_ok", "label": "Class C is acceptable", "filter": {"en_13501": "any"}},
+          {"value": "unsure", "label": "Not sure — advise me", "filter": {"en_13501": "any"}}
+        ]
+      }
+    ],
+    "recommendation_matrix": [
+      {
+        "profile": "Home theatre / rehearsal studio — max absorption",
+        "match_criteria": {"q1": "home_theatre_studio", "q2": "max_absorption"},
+        "primary": {
+          "product_id": "flat_pet_wool",
+          "thickness_mm": 40,
+          "nrc": 0.90,
+          "rationale": "Highest direct-fix NRC in the range. Ideal for high reverberation control."
+        },
+        "secondary": {
+          "product_id": "flat_pet_wool",
+          "thickness_mm": 20,
+          "nrc": 0.70,
+          "rationale": "Good alternative if wall depth is limited — combine with rear air gap to lift performance further."
+        }
+      },
+      {
+        "profile": "Office / boardroom — speech clarity",
+        "match_criteria": {"q1": "office_boardroom", "q2": "max_absorption"},
+        "primary": {
+          "product_id": "flat_pet",
+          "thickness_mm": 25,
+          "nrc": 0.70,
+          "rationale": "NRC 0.70 with Class B fire rating and clean printed finish — well matched to corporate environments."
+        },
+        "secondary": {
+          "product_id": "flat_pet_wool",
+          "thickness_mm": 20,
+          "nrc": 0.70,
+          "rationale": "Matches NRC 0.70 at lower material density — good cost-performance alternative."
+        }
+      },
+      {
+        "profile": "Office / boardroom — design-led",
+        "match_criteria": {"q1": "office_boardroom", "q2": "design_first"},
+        "primary": {
+          "product_id": "embossed_pet",
+          "thickness_mm": 25,
+          "nrc": "0.35 – 0.50",
+          "rationale": "Sculptural surface with Class B fire rating. Set A patterns (Aqualine, Drift, Ribbed) reach NRC 0.50."
+        },
+        "secondary": {
+          "product_id": "flat_pet",
+          "thickness_mm": 12,
+          "nrc": 0.45,
+          "rationale": "Slim profile, printed finish option, Class B fire rating."
+        }
+      },
+      {
+        "profile": "Hospitality / restaurant / lounge",
+        "match_criteria": {"q1": "hospitality"},
+        "primary": {
+          "product_id": "embossed_pet",
+          "thickness_mm": 25,
+          "nrc": "0.35 – 0.50",
+          "rationale": "Class B fire rating (hospitality-appropriate), sculptural surface, Marble and Leather bespoke graphics add luxury finish."
+        },
+        "secondary": {
+          "product_id": "flat_pet",
+          "thickness_mm": 25,
+          "nrc": 0.70,
+          "rationale": "Higher NRC in same material class, printed finish option for branded artwork."
+        }
+      },
+      {
+        "profile": "Public venue — airport / gallery",
+        "match_criteria": {"q1": "public_venue"},
+        "primary": {
+          "product_id": "flat_pet",
+          "thickness_mm": 25,
+          "nrc": 0.70,
+          "rationale": "Class B fire rating (preferred for regulated public spaces), durable high-density surface, printed artwork supported."
+        },
+        "secondary": {
+          "product_id": "embossed_pet",
+          "thickness_mm": 25,
+          "nrc": "0.35 – 0.50",
+          "rationale": "Same fire class with architectural sculptural relief — good for galleries and brand installations."
+        }
+      },
+      {
+        "profile": "Branded experience / retail centre",
+        "match_criteria": {"q1": "brand_experience", "q3": "printed_custom"},
+        "primary": {
+          "product_id": "flat_pet",
+          "thickness_mm": 25,
+          "nrc": 0.70,
+          "rationale": "High-density surface supports the sharpest printed graphics with strong acoustic performance and Class B fire rating."
+        },
+        "secondary": {
+          "product_id": "flat_pet_wool",
+          "thickness_mm": 20,
+          "nrc": 0.70,
+          "rationale": "Also supports high-resolution printing at the same NRC, with a softer fibre surface."
+        }
+      },
+      {
+        "profile": "Wellness / meditation space",
+        "match_criteria": {"q1": "wellness_meditation"},
+        "primary": {
+          "product_id": "embossed_pet_wool",
+          "thickness_mm": 20,
+          "nrc": "0.35 – 0.40",
+          "rationale": "Sculptural surface, tactile quality, Ombre and Fabric series give calming finishes suited to contemplative spaces."
+        },
+        "secondary": {
+          "product_id": "flat_pet_wool",
+          "thickness_mm": 20,
+          "nrc": 0.70,
+          "rationale": "If the priority shifts to silence and quiet, higher-NRC flat panel in Nature Reimagined or Quiet Bloom prints."
+        }
+      },
+      {
+        "profile": "Residential / home",
+        "match_criteria": {"q1": "residential"},
+        "primary": {
+          "product_id": "flat_pet_wool",
+          "thickness_mm": 20,
+          "nrc": 0.70,
+          "rationale": "Strong absorption, wide design library, lightweight and easy to install in home contexts."
+        },
+        "secondary": {
+          "product_id": "embossed_pet_wool",
+          "thickness_mm": 20,
+          "nrc": "0.35 – 0.40",
+          "rationale": "If design is the priority, sculptural panels create feature walls alongside acoustic benefit."
+        }
+      }
+    ],
+    "override_rules": [
+      {
+        "condition": "q4 == class_b_required",
+        "action": "filter_out",
+        "products": ["flat_pet_wool", "embossed_pet_wool"],
+        "note": "PET Wool products are Class C. Only PET products meet Class B requirement."
+      },
+      {
+        "condition": "q3 == sculptural_3d",
+        "action": "prefer",
+        "products": ["embossed_pet", "embossed_pet_wool"]
+      },
+      {
+        "condition": "q3 == printed_custom",
+        "action": "prefer",
+        "products": ["flat_pet", "flat_pet_wool"]
+      },
+      {
+        "condition": "q2 == max_absorption",
+        "action": "rank_by",
+        "metric": "nrc_direct_fix_desc"
+      }
+    ]
+  }
+}

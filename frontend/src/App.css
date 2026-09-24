@@ -1,13 +1,41 @@
 /* UniVicoustic Configurator Styles */
 
-.configurator-layout {
+/* Root: full-height column (header on top, content row below) */
+.configurator-root {
     display: flex;
     flex-direction: column;
-    min-height: 100vh;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* Top header bar */
+.app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 48px;
+    padding: 0 1.25rem;
+    background: white;
+    border-bottom: 1px solid hsl(var(--border));
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    flex-shrink: 0;
+}
+
+/* Content row: sidebar + preview */
+.configurator-content {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    height: calc(100vh - 48px);
+    min-height: 0;
+    overflow: hidden;
+    background: rgb(245, 245, 245);
 }
 
 @media (min-width: 768px) {
-    .configurator-layout {
+    .configurator-content {
         flex-direction: row;
     }
 }
@@ -15,62 +43,165 @@
 /* Sidebar */
 .config-sidebar {
     width: 100%;
-    background: white;
+    background: #fbfafa !important; /* TEST: bright magenta */
     border-right: 1px solid hsl(var(--border));
-    overflow-y: auto;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 @media (min-width: 768px) {
     .config-sidebar {
-        width: 400px;
-        max-height: 100vh;
+        width: 320px;
+        flex-shrink: 0;
+        height: 100%;
     }
+}
+
+/* Flat section — replaces the old card-border style */
+.config-section {
+    padding: 0.625rem 1rem;
+    border-bottom: 1px solid hsl(var(--border));
+}
+
+/* Accordion wrapper — flat, no card border */
+.config-accordion-wrapper {
+    border-bottom: 1px solid hsl(var(--border));
+}
+
+.config-accordion-wrapper [data-radix-collection-item] {
+    border: none;
+}
+
+/* Generic product accordion items */
+.config-accordion {
+    padding-left: 1rem;
+    padding-right: 1rem;
+    border-bottom: 1px solid hsl(var(--border)) !important;
+    border-radius: 0;
+    border-top: none !important;
+    border-left: none !important;
+    border-right: none !important;
+}
+
+/* Compact sidebar: shrink all select triggers and buttons inside the sidebar */
+.config-sidebar [data-slot="select-trigger"],
+.config-sidebar button[role="combobox"] {
+    height: 32px;
+    font-size: 0.75rem;
+    padding-left: 0.625rem;
+    padding-right: 0.625rem;
+}
+
+/* Compact sidebar: shrink inline Switch rows */
+.config-sidebar [data-slot="switch"] {
+    transform: scale(0.85);
+    transform-origin: right center;
 }
 
 /* Canvas Area */
 .canvas-area {
     flex: 1;
-    background: #ffffff;
+    background: transparent;
     position: relative;
-    min-height: 60vh;
+    height: 100%;
+    min-height: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    overflow: hidden;
-}
-
-@media (min-width: 768px) {
-    .canvas-area {
-        min-height: 100vh;
-    }
 }
 
 /* Thumbnail Grid */
 .thumbnail-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 0.5rem;
+    gap: 0.375rem;
 }
 
 .thumbnail-item {
     aspect-ratio: 1;
-    border-radius: 0.5rem;
+    border-radius: 0.375rem;
     overflow: hidden;
     cursor: pointer;
-    border: 2px solid transparent;
-    transition: all 0.2s ease;
+    border: 1px solid hsl(var(--border));
     background-size: cover;
     background-position: center;
+    /* position: relative so the .selected ::after checkmark badge can be
+       anchored to the top-right corner regardless of where this tile sits. */
+    position: relative;
 }
 
 .thumbnail-item:hover {
-    border-color: hsl(var(--muted-foreground));
-    transform: scale(1.02);
+    border: 2px solid hsl(var(--muted-foreground));
+}
+
+.thumbnail-item.disabled:hover {
+    border: 1px solid hsl(var(--border));
+    transform: none;
+}
+
+/* Emboss thumbnail hover name label */
+.emboss-thumbnail-label {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.65);
+    color: #fff;
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-align: center;
+    padding: 3px 4px;
+    pointer-events: none;
+    line-height: 1.2;
+    letter-spacing: 0.01em;
+}
+
+.emboss-thumbnail:hover .emboss-thumbnail-label {
+    opacity: 1;
 }
 
 .thumbnail-item.selected {
-    border-color: hsl(var(--accent));
-    box-shadow: 0 0 0 2px hsl(var(--accent) / 0.3);
+    /* Selected state = accent border + corner check badge (defined via
+       ::after below).  The badge does the heavy lifting; the 2-px border
+       is just a subtle peripheral cue.  Dropped the outer glow we tried
+       earlier — it washed out on dark panels and competed with the badge. */
+    border: 2px solid hsl(var(--accent));
+}
+
+/* Shared check-mark badge for ANY selected element.
+   Three trigger paths covered:
+     1. .thumbnail-item.selected   — DesignThumbnail / EmbossThumbnail
+     2. .color-swatch.selected     — generic color-grid swatches
+     3. [data-uv-selected="true"]  — universal opt-in for any element
+        whose selected styling lives in inline Tailwind classes (e.g.
+        Color Core base swatches, Designer Textile color cells, Ombre
+        base/overlay swatches, etc.)  Add `data-uv-selected={isSelected}`
+        to a button / div and it gets the badge automatically.
+   Auto-sizes via `min(20px, 35%)` so a 600-px wide thumbnail and a
+   30-px overlay swatch both get a sensibly-proportioned badge.  SVG
+   inlined as a data: URI so there's no extra HTTP request. */
+.thumbnail-item.selected::after,
+.color-swatch.selected::after,
+[data-uv-selected="true"]::after {
+    content: "";
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: min(20px, 35%);
+    height: min(20px, 35%);
+    min-width: 12px;
+    min-height: 12px;
+    border-radius: 50%;
+    background-color: hsl(var(--accent));
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg>");
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 65% 65%;
+    border: 2px solid white;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+    pointer-events: none;
+    z-index: 2;
 }
 
 /* Color Swatches */
@@ -87,6 +218,8 @@
     cursor: pointer;
     border: 2px solid transparent;
     transition: all 0.15s ease;
+    /* Anchor for the .selected ::after corner-check badge. */
+    position: relative;
 }
 
 .color-swatch:hover {
@@ -94,8 +227,10 @@
 }
 
 .color-swatch.selected {
+    /* Match thumbnail-item.selected — accent border + corner check badge
+       (defined alongside .thumbnail-item.selected::after above). */
+    border-width: 2px;
     border-color: hsl(var(--accent));
-    box-shadow: 0 0 0 2px hsl(var(--accent) / 0.3);
 }
 
 /* Action Buttons */
@@ -104,9 +239,9 @@
     bottom: 0;
     background: white;
     border-top: 1px solid hsl(var(--border));
-    padding: 1rem;
+    padding: 0.625rem 1rem;
     display: flex;
-    gap: 0.75rem;
+    gap: 0.5rem;
 }
 
 /* Canvas Overlay */
@@ -130,36 +265,40 @@
     z-index: 20;
 }
 
-/* Favorites Modal */
-.favorites-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
+/* Favorites Modal — the saved-configurations list is now styled inline with
+   Tailwind utility classes as slim full-width rows (see Configurator.jsx).
+   The old .favorites-grid / .favorite-card rules were removed when the layout
+   changed from a multi-column card grid to a vertical list. */
+
+/* Download-button spinner — a plain <div> (not an SVG) so Chrome reliably
+   promotes it to its own GPU compositor layer.  A composited transform
+   animation keeps spinning smoothly even while the main thread is blocked by
+   the ~1.5s image encode (toPng/toDataURL), so the loader no longer stutters.
+   `will-change: transform` is the promotion hint; the animation only touches
+   `transform`, which is compositor-eligible. */
+.btn-spinner {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-top-color: #ffffff;
+    will-change: transform;
+    animation: btn-spinner-rotate 0.7s linear infinite;
 }
 
-@media (min-width: 640px) {
-    .favorites-grid {
-        grid-template-columns: repeat(3, 1fr);
-    }
-}
-
-.favorite-card {
-    border-radius: 0.75rem;
-    overflow: hidden;
-    background: hsl(var(--secondary));
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.favorite-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+@keyframes btn-spinner-rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 /* Logo */
 .brand-logo {
-    font-family: 'Manrope', sans-serif;
-    font-weight: 800;
+    font-family: 'Bitcount Grid Double', system-ui;
+    font-optical-sizing: auto;
+    font-weight: 400;
+    font-style: normal;
+    font-variation-settings: "slnt" 0, "CRSV" 0.5, "ELSH" 0, "ELXP" 0;
     letter-spacing: -0.02em;
 }
 
@@ -167,8 +306,142 @@
 .section-header {
     font-family: 'Manrope', sans-serif;
     font-weight: 700;
-    font-size: 0.875rem;
+    font-size: 0.65rem;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.07em;
     color: hsl(var(--muted-foreground));
+}
+
+/* Boot loader */
+.uv-loader {
+    height: 80px;
+    width: auto;
+    object-fit: contain;
+    animation: uv-loader-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes uv-loader-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: 0.6; transform: scale(0.92); }
+}
+
+/* ── Mobile layout (under 768px) ──────────────────────────────────────────
+   On mobile, the sidebar + canvas stack vertically. The root and content
+   wrappers become page-scrollable (not fixed-height), the sidebar takes
+   its natural content height, and the canvas-area gets a full viewport
+   height (100dvh) so the preview is large once the user scrolls to it. */
+@media (max-width: 767px) {
+    .configurator-root {
+        height: auto;
+        min-height: 100vh;
+        overflow-x: hidden;
+        overflow-y: visible;
+        max-width: 100vw;
+    }
+
+    .configurator-content {
+        height: auto;
+        min-height: calc(100dvh - 48px);
+        overflow-x: hidden;
+        overflow-y: visible;
+        flex-direction: column;
+        max-width: 100vw;
+    }
+
+    .config-sidebar {
+        overflow: visible;
+        height: auto;
+        flex: 0 0 auto;
+        border-right: none;
+        border-bottom: 1px solid hsl(var(--border));
+    }
+
+    /* Neutralize Radix ScrollArea on mobile so the page itself scrolls.
+       Without this, the sidebar's ScrollArea intercepts all touch swipes
+       and the user gets stuck at the top of the page. */
+    .config-sidebar > .relative.overflow-hidden {
+        overflow: visible !important;
+        flex: 0 0 auto;
+    }
+    .config-sidebar [data-radix-scroll-area-viewport] {
+        overflow: visible !important;
+        height: auto !important;
+    }
+
+    .canvas-area {
+        /* Stack preview vertically with the selection chips BELOW it on
+           mobile — the chips used to be absolute-positioned over the
+           preview, which on a phone-sized viewport meant they covered the
+           thing the user was trying to see.  Switching the canvas-area to
+           flex-direction:column + auto height lets the chip stack sit in
+           normal flow under the preview. */
+        flex: 0 0 auto;
+        width: 100%;
+        height: auto;
+        min-height: 70dvh;
+        flex-direction: column;
+        justify-content: flex-start;
+    }
+
+    /* The FlatEmbossedPreview component renders a wallCanvasRef div with
+       inline `display: inline-block` that shrink-wraps to the furniture
+       image.  Without a max-height cap, on mobile the image takes its
+       intrinsic 1:1 ratio at full viewport width, ending up TALLER than
+       the canvas slot and overflowing the rounded card.  Cap it.
+       NOTE: the old selector was `[data-testid="wall-canvas"] > img` but
+       furniture and tpatti are now wrapped in <picture> for WebP delivery,
+       so target the leaf imgs by data-testid instead. */
+    [data-testid="furniture-layer"],
+    [data-testid="tpatti-layer"] {
+        max-height: calc(70dvh - 24px) !important;
+        max-width: 100% !important;
+        width: auto !important;
+        height: auto !important;
+    }
+
+    /* Selection mini-cards (chips): static below the preview on mobile so
+       they no longer cover the image. Wrap into rows when there are more
+       chips than fit on a single line.  pointer-events restored so the
+       chips can be tapped. */
+    [data-testid="selection-mini-cards"] {
+        position: static !important;
+        width: 100%;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 0.4rem !important;
+        padding: 0.75rem 1rem 1rem !important;
+        pointer-events: auto !important;
+        background: transparent;
+    }
+}
+
+/* "View Preview" FAB — mobile-only, scrolls user down to the canvas. */
+.view-preview-fab {
+    position: fixed;
+    bottom: 1rem;
+    left: 1rem;
+    z-index: 60;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.55rem 0.9rem;
+    border-radius: 999px;
+    background: hsl(25, 40%, 46%);
+    color: white;
+    font-family: 'Manrope', sans-serif;
+    font-weight: 600;
+    font-size: 0.8rem;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+    border: none;
+    cursor: pointer;
+}
+
+.view-preview-fab:active {
+    transform: translateY(1px);
+}
+
+@media (min-width: 768px) {
+    .view-preview-fab {
+        display: none;
+    }
 }

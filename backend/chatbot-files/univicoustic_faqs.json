@@ -1,0 +1,214 @@
+{
+  "faqs": [
+    {
+      "id": "diff_pet_pet_wool",
+      "category": "Product Selection",
+      "question": "What is the difference between PET and PET Wool panels?",
+      "variants": ["PET vs PET Wool", "Which material is better, PET or PET Wool?", "How are PET and PET Wool different?"],
+      "answer": "Both are made from 60% post-consumer recycled PET (plastic bottles) and are fully recyclable. The difference lies in density and how that affects performance:\n\n**PET Wool** is lower density (around 2000 GSM at 20 mm) and more porous, which generally gives it higher sound absorption at a given thickness. Its fire rating is EN-13501 Class C, s2, d0.\n\n**PET Panel** is high-density recycled PET (2400 GSM at 12 mm, 3600 GSM at 25 mm), which gives it greater material integrity, a cleaner printed surface, and a higher fire rating — EN-13501 Class B, s1, d0, with additional certifications (ASTM D 2859 and BS 5852 Part 1).\n\n**Rule of thumb**: Choose PET Wool when maximum acoustic absorption is the priority. Choose PET when you need higher fire safety, crisper printed graphics, or stricter durability — this is typical for airports, healthcare, hospitality, and public venues."
+    },
+    {
+      "id": "diff_flat_embossed",
+      "category": "Product Selection",
+      "question": "Flat panels vs Embossed panels — which should I choose?",
+      "variants": ["Should I pick flat or embossed?", "Difference between flat and embossed"],
+      "answer": "**Flat panels** absorb more sound at comparable thickness because the full surface is exposed. They also support high-resolution printing and custom branding, making them ideal when acoustic performance and a clean printed finish are both priorities.\n\n**Embossed panels** have a sculpted 3D surface relief. They trade some absorption for partial sound diffusion and significant architectural depth. Choose embossed when the wall needs to be a design statement — sculptural character, tactile surface, visual rhythm — alongside acoustic function.\n\nFor example, at 20 mm, Flat PET Wool gives NRC 0.70, while Embossed PET Wool at the same thickness gives NRC 0.35–0.40 depending on pattern set. The embossed panel is not acoustically inferior — it is optimised differently."
+    },
+    {
+      "id": "highest_nrc",
+      "category": "Acoustic Performance",
+      "question": "Which panel has the highest sound absorption?",
+      "variants": ["Best performing panel", "Maximum NRC panel", "Which is most absorbent?"],
+      "answer": "**Flat Panel VMT (PET Wool) 40 mm** delivers the highest direct-fix NRC at **0.90** (ISO αw = 1.01). It is the top performer in the range when maximum absorption is required — typical for home theatres, recording studios, rehearsal rooms, and spaces with long reverberation problems."
+    },
+    {
+      "id": "nrc_by_panel_table",
+      "category": "Acoustic Performance",
+      "question": "What are the NRC values of all panels?",
+      "variants": ["Panel NRC comparison", "NRC chart", "Absorption ratings"],
+      "answer": "Direct-fix NRC values (no backing or air gap):\n\n| Product | Thickness | NRC |\n|---|---|---|\n| Embossed PET (12 mm) | 12 mm | 0.25 – 0.35 |\n| Embossed PET Wool (20 mm) | 20 mm | 0.35 – 0.40 |\n| Embossed PET (25 mm) | 25 mm | 0.35 – 0.50 |\n| Flat PET (12 mm) | 12 mm | 0.45 |\n| Flat PET (25 mm) | 25 mm | 0.70 |\n| Flat PET Wool (20 mm) | 20 mm | 0.70 |\n| Flat PET Wool (40 mm) | 40 mm | 0.90 |\n\nEmbossed NRC varies by pattern set (Set A / B / C) — exact values differ. With a rear air gap or infill, most products can reach NRC 0.80–0.90."
+    },
+    {
+      "id": "embossed_pattern_nrc",
+      "category": "Acoustic Performance",
+      "question": "Do different embossed patterns have different NRC values?",
+      "variants": ["Pattern effect on acoustics", "Set A vs Set B vs Set C"],
+      "answer": "Yes. Embossed panels are grouped into **Set A**, **Set B**, **Set C**, plus wallpaper patterns, and each set has a slightly different acoustic profile:\n\n**Embossed PET Wool 20 mm**: Set A = NRC 0.35 (αw 0.94), Set B = NRC 0.35 (αw 0.91), Set C = NRC 0.40 (αw 0.96).\n\n**Embossed PET 12 mm**: Set A = NRC 0.25 (αw 0.96), Set B = NRC 0.25 (αw 0.90), Set C = NRC 0.35 (αw 1.01).\n\n**Embossed PET 25 mm**: Set A = NRC 0.50 (αw 0.93), Set B = NRC 0.40 (αw 0.94), Set C = NRC 0.35 (αw 0.91).\n\nSet A patterns include Aqualine, Drift, Flux Ribbed, Ribbed 45 mm, Ribbed 60 mm. Set B includes Tapered, Ribbed Duo, Bloom, Elliptera, Ribbed 25 mm, Shard, Ellipsia. Set C includes Deck, Square 30, Triangle."
+    },
+    {
+      "id": "what_is_nrc",
+      "category": "General Acoustics",
+      "question": "What is NRC?",
+      "variants": ["Define NRC", "Noise Reduction Coefficient meaning"],
+      "answer": "NRC stands for **Noise Reduction Coefficient** — the single-number rating used to describe how much sound a material absorbs. It is the average absorption at 250, 500, 1000, and 2000 Hz. Values run from 0 (fully reflective) to 1 (fully absorbent).\n\nSo a panel rated NRC 0.70 absorbs roughly 70% of the sound energy hitting it across mid-frequencies. NRC is the ASTM C 423 standard commonly used in North American and Indian specifications."
+    },
+    {
+      "id": "what_is_alpha_w",
+      "category": "General Acoustics",
+      "question": "What is αw (alpha w)?",
+      "variants": ["Define alpha w", "What is weighted absorption coefficient?"],
+      "answer": "αw is the **weighted sound absorption coefficient** per ISO 11654 — the European single-number equivalent of NRC. It is derived by fitting a reference curve against the measured 1/3-octave absorption data.\n\nValues typically run from 0 to 1. Lab values can sometimes exceed 1 due to edge-diffraction effects in test chambers, which is why you will see αw = 1.01 or 1.04 on some of the data sheets. In practice these are treated as fully absorbent."
+    },
+    {
+      "id": "nrc_vs_alpha_w",
+      "category": "General Acoustics",
+      "question": "What is the difference between NRC and αw?",
+      "variants": ["ASTM vs ISO acoustic rating", "Why two numbers on the spec sheet?"],
+      "answer": "Both describe sound absorption but use different standards:\n\n- **NRC** follows ASTM C 423 (North American / Indian conventions).\n- **αw** follows ISO 11654 (European conventions).\n\nUniVicoustic reports both because project specifications cite either system depending on the architect, consultant, or client standards. The values are usually close but not identical — they weight frequency bands slightly differently."
+    },
+    {
+      "id": "increase_absorption",
+      "category": "Acoustic Performance",
+      "question": "How do I increase absorption beyond the rated NRC?",
+      "variants": ["Can I boost the NRC?", "Air gap effect", "Backing infill"],
+      "answer": "The rated NRC is the **direct-fix** performance — panel glued flat against the wall. You can push absorption significantly higher by:\n\n1. **Adding a rear air gap** — a 25–50 mm cavity behind the panel improves mid-frequency absorption and pushes values toward NRC 0.80–0.90.\n2. **Adding backing or infill** — mineral wool, rockwool, or additional PET batt behind the panel extends absorption into lower frequencies.\n\nUniVicoustic confirms up to NRC 0.80 with backing/infill across all products (and up to 0.90 with air gap for the PET flat panels). This is the most cost-effective way to upgrade performance without switching to a thicker panel."
+    },
+    {
+      "id": "embossed_why_lower_nrc",
+      "category": "Acoustic Performance",
+      "question": "Why is the embossed panel NRC lower than the flat panel?",
+      "variants": ["Embossed vs flat absorption"],
+      "answer": "Embossed panels are designed to do two things at once — absorb AND diffuse. The sculpted relief scatters a portion of the incoming sound rather than absorbing it, which shows up as lower NRC in the lab test.\n\nIn a real room, diffusion is actually desirable — it breaks up flutter echo and improves perceived sound quality, especially in boardrooms, home theatres, and performance spaces. So a lower NRC number does not mean worse acoustic outcome; it means the panel is doing a different acoustic job.\n\nIf pure reverberation reduction is the only goal (open office, call centre, classroom), flat panels are the more efficient choice. If the space needs both absorption and a refined sound field, embossed panels are the right call."
+    },
+    {
+      "id": "frequencies_addressed",
+      "category": "Acoustic Performance",
+      "question": "What frequencies do these panels address?",
+      "variants": ["Do they work for bass?", "Frequency range"],
+      "answer": "All UniVicoustic PET and PET Wool panels are optimised for **mid-to-high frequencies** — roughly 500 Hz and above, where human speech intelligibility and most office and hospitality noise sits.\n\nFor low-frequency control (below 250 Hz — HVAC rumble, bass, plant noise), porous absorbers need more thickness or a large rear air gap. The 40 mm Flat PET Wool or 25 mm Flat PET with a deep air gap will perform best in the low-mid range. True bass traps usually require additional membrane or resonant absorbers."
+    },
+    {
+      "id": "absorption_vs_soundproofing",
+      "category": "General Acoustics",
+      "question": "Will these panels soundproof my room?",
+      "variants": ["Difference between absorption and soundproofing", "Will neighbours still hear me?"],
+      "answer": "No — these are **acoustic absorbers**, not soundproofing. The distinction matters:\n\n- **Absorption** reduces echo, reverberation, and noise build-up *inside* the room. UniVicoustic panels do this well.\n- **Soundproofing** (sound isolation) prevents sound from passing *through* walls to another space. That requires mass, decoupling, damping, and airtight sealing — a structural solution, not a surface panel.\n\nIf the goal is \"my meetings sound clearer\" or \"the room is not echoing\", panels are the right solution. If the goal is \"the room next door should not hear me\", you need wall construction changes in addition to panels."
+    },
+    {
+      "id": "installation_method",
+      "category": "Installation",
+      "question": "How are the panels installed?",
+      "variants": ["Installation procedure", "How to fix the panels?", "Mounting method"],
+      "answer": "Installation is straightforward:\n\n- **Application**: Wall (all products are spec'd for wall application)\n- **Fixing method**: Silicone-base glue, applied in beads to the back of the panel and pressed against a clean, dry, level wall surface\n- **Environment**: Controlled indoor spaces only — avoid installation near heat sources or in areas with prolonged direct sunlight\n\nPanels are lightweight and easy to handle, so mounting is quick. For air-gap installations or mechanical fixing (batten systems), our technical team can share application guidelines on request."
+    },
+    {
+      "id": "ceiling_installation",
+      "category": "Installation",
+      "question": "Can I install them on the ceiling?",
+      "variants": ["Ceiling panels", "Use on ceiling?"],
+      "answer": "The technical data sheets spec the application as **Wall**. For ceiling use, the panel will need a mechanical support system and qualified application — adhesive-only ceiling fixing is not recommended.\n\nIf your project needs ceiling acoustic treatment, please contact our technical team — we can advise on suitable products and mounting systems for overhead application."
+    },
+    {
+      "id": "outdoor_use",
+      "category": "Installation",
+      "question": "Can these panels be used outdoors?",
+      "variants": ["Outdoor installation", "Weather-resistant?"],
+      "answer": "No. The panels are designed for **controlled interior environments only**. Outdoor installation, direct sunlight, and proximity to heat sources are explicitly not recommended and may cause performance or appearance deviations not covered under warranty."
+    },
+    {
+      "id": "material_composition",
+      "category": "Sustainability",
+      "question": "What are the panels made of?",
+      "variants": ["Material composition", "What is in the panel?"],
+      "answer": "All UniVicoustic PET and PET Wool panels are manufactured from **60% post-consumer PET** — recycled primarily from plastic bottles — and are engineered for **100% recyclability post-consumption**. The panels are fibre-based, with no formaldehyde."
+    },
+    {
+      "id": "certifications",
+      "category": "Sustainability",
+      "question": "What certifications do your panels have?",
+      "variants": ["Compliance list", "Sustainability certifications", "IGBC, GreenPro, EPD"],
+      "answer": "The full certification list:\n\n**Manufacturing standards**\n- ISO 9001:2015 (Quality)\n- ISO 14001:2015 (Environmental)\n- ISO 45001:2018 (Occupational Health & Safety)\n\n**Sustainability**\n- IGBC\n- GreenPro\n- Environmental Product Declaration (EPD)\n- Red List Free\n\n**Health & indoor air quality**\n- Anti-fungal: ASTM G:21\n- Formaldehyde: ISO 14184-2 (No formaldehyde)\n\n**Performance**\n- Thermal conductivity: ASTM C 518-21\n- Colour fastness to light: ISO 105 B02\n\nCertificates are available on request via sales."
+    },
+    {
+      "id": "fire_rating",
+      "category": "Compliance",
+      "question": "What is the fire rating?",
+      "variants": ["Fire performance", "Flammability certification"],
+      "answer": "Fire performance varies by material:\n\n**PET (high-density) panels** — Flat or Embossed:\n- EN-13501 Part 1: **Class B, s1, d0**\n- ASTM E84\n- BS 476 Part 6 & 7\n- ASTM D 2859\n- BS 5852 Part 1\n\n**PET Wool panels** — Flat or Embossed:\n- EN-13501 Part 1: **Class C, s2, d0**\n- ASTM E84\n- BS 476 Part 6 & 7\n\nClass B is a higher fire rating than Class C — preferred for airports, hospitals, hotels, and regulated public spaces. Test certificates are available on request."
+    },
+    {
+      "id": "formaldehyde_free",
+      "category": "Compliance",
+      "question": "Are the panels formaldehyde-free?",
+      "variants": ["Is it safe for indoor air?", "VOC emissions"],
+      "answer": "Yes — all panels are tested to **ISO 14184-2 (No formaldehyde)**. They are also Red List Free and carry EPD certification, making them suitable for LEED, IGBC, WELL, and other green-building projects that require healthy indoor air specifications."
+    },
+    {
+      "id": "recycled_content",
+      "category": "Sustainability",
+      "question": "How much recycled content is in the panels?",
+      "variants": ["Post-consumer content", "Sustainability percentage"],
+      "answer": "60% of the panel is post-consumer recycled PET, sourced primarily from plastic bottles. The panel is engineered to be 100% recyclable at end of life, supporting a circular economy model."
+    },
+    {
+      "id": "custom_design",
+      "category": "Design",
+      "question": "Can I get custom colors or prints?",
+      "variants": ["Custom palette", "Custom graphics", "Can I print my logo?"],
+      "answer": "Yes. Flat panels (both PET and PET Wool) support **high-resolution custom printing** for branding, artwork, and bespoke graphics. Custom palettes are available on a **project-specific, MOQ-based** arrangement.\n\nOur design library already includes several series — Designer Textile, Luxury Textures, Modern Corporate, Classic Parquet, Wood Classics, Marble, Leather, Indian Modern, Quiet Bloom, Nature Reimagined, and more. For custom artwork, our sales team will share print guidelines and sample approval workflow."
+    },
+    {
+      "id": "available_series",
+      "category": "Design",
+      "question": "What design series are available?",
+      "variants": ["Pattern library", "Design options", "Finishes"],
+      "answer": "**Flat panels (PET & PET Wool)**\n- Fabrics: Designer Textile, Luxury Textures, Modern Corporate (PET also: Color Core)\n- Ligna (wood): Classic Parquet, Wood Classics, Wood perforation\n- Bespoke Graphics: Line & Texture, Rhythm & Repeat, Woven Brushwork, Patterned Weaves, Indian Modern, Quiet Bloom, Nature Reimagined, Color Block, Fun & Fantasy, Soft Texture, Marble, Leather\n\n**Embossed panels (PET & PET Wool)**\n- Fabrics: Designer Textile, Color Core\n- Ligna: Wood Classics, Wood perforation\n- Bespoke Graphics: Marble, Leather\n- Ombre: Color Core Ombre, Signature Ombre Series\n\nEmbossed panels additionally have 3D pattern sets (Set A, B, C) and wallpaper patterns (Weave, Square 8, Symmetric, Axis)."
+    },
+    {
+      "id": "sizes_available",
+      "category": "Product Specs",
+      "question": "What panel sizes are available?",
+      "variants": ["Standard dimensions", "Tile sizes"],
+      "answer": "**Flat PET Wool** — 2800×1200, 2400×1200, 1200×600, 600×600 mm (20 mm and 40 mm thick).\n\n**Flat PET** — 2780×1200 and 2420×1200 mm (12 mm and 25 mm thick).\n\n**Embossed PET Wool 3D** — 2800×1200, 1200×600, 600×600 mm (20 mm). **Wallpaper** — 2400×1200 mm.\n\n**Embossed PET 3D** — 2800×1200, 1200×600, 600×600 mm (12 and 25 mm). **Wallpaper** — 2400×1200 mm.\n\nAll dimensions are ±2 mm tolerance."
+    },
+    {
+      "id": "thickness_options",
+      "category": "Product Specs",
+      "question": "What thickness options are available?",
+      "variants": ["Panel thickness", "How thick are the panels?"],
+      "answer": "- **Flat PET Wool**: 20 mm or 40 mm\n- **Flat PET**: 12 mm or 25 mm\n- **Embossed PET Wool**: 20 mm\n- **Embossed PET**: 12 mm or 25 mm\n\nThicker panels generally deliver higher NRC and better low-to-mid frequency performance."
+    },
+    {
+      "id": "color_variation",
+      "category": "Product Specs",
+      "question": "Why is there colour variation between batches?",
+      "variants": ["Batch colour differences", "Shade matching"],
+      "answer": "Minor colour variation between production batches is inherent to fibre-based PET materials and is not considered a defect. This is noted in our standard product performance disclaimer. For large projects where shade consistency is critical, we recommend ordering the full quantity from a single production batch."
+    },
+    {
+      "id": "recommended_spaces",
+      "category": "Product Selection",
+      "question": "Where are these panels used?",
+      "variants": ["Typical applications", "Recommended spaces"],
+      "answer": "Common applications across the range:\n- Executive cabins, boardrooms, conference rooms\n- Hotel suite bedrooms and banquets\n- Private home theatres, performing arts studios\n- Airport premium lounges, corporate reception areas\n- Art galleries, brand galleries, experience centres, exhibition corridors\n- Fine-dining interiors, boutique lounges\n- Meditation, wellness, and spiritual spaces\n- Library reading halls, knowledge centres, open-plan offices\n\nSelection within the range depends on required NRC, fire rating, and aesthetic intent — our sales and technical teams can recommend a fit for your specific space."
+    },
+    {
+      "id": "room_coverage",
+      "category": "General Acoustics",
+      "question": "How much panel area do I need for my room?",
+      "variants": ["Coverage calculation", "How many panels?"],
+      "answer": "As a working rule of thumb for speech spaces (offices, meeting rooms, classrooms), **treating 15–30% of total room surface area** (walls + ceiling) with an NRC 0.70+ product is a reasonable starting point.\n\nMusic rooms, recording studios, and home theatres usually need more coverage and a mix of absorption + diffusion. The precise quantity should be calculated using Sabine's formula based on:\n- Room volume (L × W × H)\n- Target reverberation time (RT60)\n- Existing absorption in the room (furniture, carpet, people)\n\nShare your room dimensions and acoustic goal and we can help work out a panel schedule."
+    },
+    {
+      "id": "samples",
+      "category": "Commercial",
+      "question": "Can I see samples?",
+      "variants": ["Request samples", "Sample swatches"],
+      "answer": "Yes — sample swatches are available on request. Please contact our sales team at info@univicoustic.com or +91 86556 87649 with your project details and we will arrange samples. For custom prints, we share physical or digital previews before full production."
+    },
+    {
+      "id": "weight",
+      "category": "Product Specs",
+      "question": "How heavy are the panels?",
+      "variants": ["Panel weight", "Box weight", "GSM"],
+      "answer": "Weight depends on product and thickness. Key GSM values:\n\n- Embossed PET Wool 20 mm: 2000 GSM (~0.40 lb/ft²)\n- Embossed PET 12 mm: 2400 GSM (~0.49 lb/ft²)\n- Embossed PET 25 mm: 3600 GSM (~0.73 lb/ft²)\n- Flat PET 12 mm: 2400 GSM (~0.49 lb/ft²)\n- Flat PET 25 mm: 3600 GSM (~0.73 lb/ft²)\n\nBox weights vary by panel size and units per box — available on request for specific SKUs. All panels are classed as lightweight and easy to handle during installation."
+    },
+    {
+      "id": "maintenance",
+      "category": "Maintenance",
+      "question": "How do I clean and maintain the panels?",
+      "variants": ["Cleaning procedure", "Maintenance advice"],
+      "answer": "All panels are designed with an **easy-clean, low-maintenance surface**. Routine care is straightforward:\n\n- Dry dusting or light vacuuming with a soft brush attachment\n- Spot cleaning with a damp (not wet) cloth and mild neutral detergent if needed\n- Avoid harsh solvents, abrasive cleaners, or soaking the panel\n\nPanels should not be exposed to prolonged moisture or direct sunlight. For printed panels, extra care helps preserve the print integrity — avoid rubbing the printed surface with abrasive cloths."
+    }
+  ]
+}
