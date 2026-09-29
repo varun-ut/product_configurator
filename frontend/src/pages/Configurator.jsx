@@ -6233,7 +6233,13 @@ const Configurator = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Floating chat button */}
+      {/* Floating chat button.
+          bottom-24 on mobile: below 768px the Brevo Conversations launcher
+          keeps its own bottom-right slot — it resizes its panel for narrow
+          screens, so we leave it alone there and move out of its way instead.
+          From 768px up, index.css shifts Brevo left and this returns to
+          bottom-6, putting the two side by side. Keep the two breakpoints in
+          step if either moves. */}
       <button
         onClick={() => {
           // Computed outside the state updater: React may invoke an updater
@@ -6242,7 +6248,7 @@ const Configurator = () => {
           if (next) track("chat_opened"); // opens only — a close isn't interesting
           setChatOpen(next);
         }}
-        className="fixed border-[0.4px] border-black bottom-6 right-6 z-[300] w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-transform hover:scale-110 active:scale-95"
+        className="fixed border-[0.4px] border-black bottom-24 md:bottom-6 right-6 z-[300] w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-transform hover:scale-110 active:scale-95"
         style={{ background: 'hsl(0, 0%, 91%)' }}
         aria-label="Chat with us"
         data-testid="chat-fab"

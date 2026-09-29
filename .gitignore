@@ -108,6 +108,9 @@ android-sdk/ -e
 # Analytics database — real user event data (auth.db is already ignored above;
 # this one was an oversight). Databases do not belong in the repo.
 backend/analytics.db
+# SQLite WAL/shared-memory sidecars — appear whenever the DB is open.
+backend/analytics.db-shm
+backend/analytics.db-wal
 
 # Chatbot request logs (token counts + hashed IPs, written per day).
 backend/chatbot_logs/
