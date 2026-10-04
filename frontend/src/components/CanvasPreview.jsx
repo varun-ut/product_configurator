@@ -1,5 +1,6 @@
-import { useRef, useEffect, useCallback, forwardRef, useImperativeHandle, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { useRef, useEffect, useCallback, forwardRef, useImperativeHandle, useState, memo } from "react";
+import { useRenderLog, logImageLoad, RENDER_DEBUG } from "@/hooks/use-render-log";
+import { saveImageFile } from "@/lib/downloadImageFile";
 
 const CanvasPreview = forwardRef(({ 
   backgroundImage, 
@@ -8,8 +9,11 @@ const CanvasPreview = forwardRef(({
   selectedColor, 
   size, 
   isEmbossed,
-  productType 
+  productType,
+  onLoadingChange = null,
 }, ref) => {
+  useRenderLog("CanvasPreview", { backgroundImage, textureColor, textureUrl, selectedColor, size, isEmbossed, productType });
+
   const canvasRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [bgLoaded, setBgLoaded] = useState(false);
@@ -20,6 +24,11 @@ const CanvasPreview = forwardRef(({
   const loadStartRef = useRef(0);
   const pendingTimerRef = useRef(null);
   const MIN_LOADING_MS = 400; // minimum spinner time in ms
+
+  // Notify parent when loading state changes
+  useEffect(() => {
+    onLoadingChange?.(loading || isLoadingNewTexture);
+  }, [loading, isLoadingNewTexture, onLoadingChange]);
 
   // Wall mask area - adjusted for the provided interior image
   // The wall is the dark area at the top of the image
@@ -42,13 +51,15 @@ const CanvasPreview = forwardRef(({
   useEffect(() => {
     const img = new Image();
     img.crossOrigin = "anonymous";
+    const { onLoad: bgOnLoad, onError: bgOnError } = logImageLoad("BG image", backgroundImage);
     img.onload = () => {
+      bgOnLoad();
       bgImageRef.current = img;
       setBgLoaded(true);
       setLoading(false);
     };
     img.onerror = () => {
-      console.error("Failed to load background image");
+      bgOnError();
       setLoading(false);
       setBgLoaded(true);
     };
@@ -76,11 +87,16 @@ const CanvasPreview = forwardRef(({
 
     const img = new Image();
     img.crossOrigin = "anonymous";
+    let cancelled = false;
+    const { onLoad: texOnLoad, onError: texOnError } = logImageLoad("Texture", textureUrl);
     img.onload = () => {
+      if (cancelled) return; // a newer selection came in, discard this load
+      texOnLoad();
       // Keep new image cached while enforcing minimum spinner duration
       newTextureRef.current = img;
       const elapsed = Date.now() - loadStartRef.current;
       const remaining = Math.max(0, MIN_LOADING_MS - elapsed);
+      if (remaining > 0 && RENDER_DEBUG) console.log(`%c⏳ [CANVAS] Texture loaded but spinner held for ${remaining}ms more (MIN_LOADING_MS)`, "color:#ffb74d");
 
       if (remaining > 0) {
         pendingTimerRef.current = setTimeout(() => {
@@ -94,7 +110,8 @@ const CanvasPreview = forwardRef(({
       }
     };
     img.onerror = () => {
-      console.error("Failed to load texture image:", textureUrl);
+      if (cancelled) return;
+      texOnError();
       const elapsed = Date.now() - loadStartRef.current;
       const remaining = Math.max(0, MIN_LOADING_MS - elapsed);
       if (remaining > 0) {
@@ -109,6 +126,9 @@ const CanvasPreview = forwardRef(({
     img.src = textureUrl;
 
     return () => {
+      // Cancel this load — prevents stale images from overwriting newer selection
+      cancelled = true;
+      img.src = ""; // aborts the network request, releases browser memory
       if (pendingTimerRef.current) {
         clearTimeout(pendingTimerRef.current);
         pendingTimerRef.current = null;
@@ -118,6 +138,7 @@ const CanvasPreview = forwardRef(({
 
   // Render canvas
   const renderCanvas = useCallback(() => {
+    if (RENDER_DEBUG) console.log("%c🎨 [CANVAS] renderCanvas()", "color:#ce93d8");
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -303,27 +324,34 @@ const CanvasPreview = forwardRef(({
     }
   }, [renderCanvas, bgLoaded, textureColor, selectedColor, size, isEmbossed, isLoadingNewTexture]);
 
-  // Handle window resize
+  // Handle window resize (debounced to avoid thrashing on every pixel)
   useEffect(() => {
+    let debounceTimer = null;
     const handleResize = () => {
-      if (bgLoaded && !isLoadingNewTexture) {
-        renderCanvas();
-      }
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        if (bgLoaded && !isLoadingNewTexture) renderCanvas();
+      }, 150);
     };
     window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      if (debounceTimer) clearTimeout(debounceTimer);
+    };
   }, [renderCanvas, bgLoaded, isLoadingNewTexture]);
 
   // Expose download function
   useImperativeHandle(ref, () => ({
-    downloadImage: () => {
+    downloadImage: async (overrideFilename, addHeader) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
 
-      const link = document.createElement("a");
-      link.download = `univicoustic-design-${Date.now()}.png`;
-      link.href = canvas.toDataURL("image/png", 1.0);
-      link.click();
+      let dataUrl = canvas.toDataURL("image/png", 1.0);
+      if (addHeader) {
+        try { dataUrl = await addHeader(dataUrl); }
+        catch (err) { console.error("[CanvasPreview] header failed:", err); }
+      }
+      saveImageFile(dataUrl, overrideFilename || `univicoustic-design-${Date.now()}.png`);
     }
   }));
 
@@ -332,15 +360,13 @@ const CanvasPreview = forwardRef(({
       <div className="relative w-full h-full flex items-center justify-center">
         <canvas
           ref={canvasRef}
-          className="max-w-full max-h-full shadow-lg rounded-lg"
+          className={`max-w-full max-h-full shadow-lg rounded-lg ${loading ? "invisible" : ""}`}
           style={{ background: "transparent" }}
           data-testid="preview-canvas"
         />
         {(loading || isLoadingNewTexture) && (
-          <div className="absolute inset-0 flex items-center justify-center z-10" data-testid="texture-loading">
-            <div className="bg-white/90 backdrop-blur-sm rounded-full p-4 shadow-lg">
-              <Loader2 className="h-8 w-8 animate-spin text-[hsl(24,95%,53%)]" />
-            </div>
+          <div className="absolute inset-0 flex items-center justify-center z-10" style={{ background: "#ffffff" }} data-testid="texture-loading">
+            <img src="/UV-loader.png" alt="Loading..." className="uv-loader" />
           </div>
         )}
       </div>
@@ -350,4 +376,6 @@ const CanvasPreview = forwardRef(({
 
 CanvasPreview.displayName = "CanvasPreview";
 
-export default CanvasPreview;
+// Wrap with memo so parent re-renders don't re-render the canvas
+// unless its own props actually changed.
+export default memo(CanvasPreview);

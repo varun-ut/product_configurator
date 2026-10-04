@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Preview the Walkthrough on the Real Configurator</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 780px; margin: 40px auto; padding: 0 24px; color: #222; line-height: 1.55; }
+  h1 { color: #B27B4B; font-size: 28px; margin-bottom: 4px; }
+  h1 small { display: block; font-size: 12px; color: #888; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 18px; font-weight: 400; }
+  h2 { margin-top: 36px; font-size: 18px; color: #111; }
+  .bookmarklet {
+    display: inline-block;
+    padding: 14px 26px;
+    background: #B27B4B;
+    color: #fff;
+    border-radius: 10px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 16px;
+    margin: 14px 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,.1);
+  }
+  .bookmarklet:hover { background: #9a683d; }
+  ol li { margin-bottom: 10px; }
+  kbd { background: #eee; padding: 1px 6px; border-radius: 4px; font-size: 13px; border: 1px solid #ccc; font-family: inherit; }
+  code, pre { background: #f6f6f6; padding: 2px 6px; border-radius: 4px; font-size: 13px; font-family: ui-monospace, Consolas, monospace; }
+  pre { padding: 14px; overflow-x: auto; white-space: pre-wrap; word-break: break-all; border: 1px solid #e4e4e4; }
+  .note { background: #fff8ec; border-left: 4px solid #B27B4B; padding: 12px 16px; margin: 20px 0; border-radius: 4px; font-size: 14px; }
+  .steps { background: #fafafa; padding: 20px 24px; border-radius: 10px; border: 1px solid #eee; }
+  button.copy { padding: 8px 14px; background: #fff; border: 1px solid #ccc; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  button.copy:hover { background: #f3f3f3; }
+</style>
+</head>
+<body>
+
+<h1>Preview the walkthrough on your real configurator<small>UniVicoustic · Makes Sound Sense</small></h1>
+
+<p>This page gives you two ways to run the 24-step tour against the <b>live</b> <a href="https://configurator.univicoustic.com" target="_blank">configurator.univicoustic.com</a> — without your developer having to deploy anything yet.</p>
+
+<div class="note">
+<b>Why didn't the other demo look right?</b> Browsers block websites from being embedded inside another page for security. The earlier <code>univicoustic-tour-demo.html</code> is a simplified mockup of the layout so you can see the tour mechanics. To see it on the real UI, use one of the methods below.
+</div>
+
+<h2>Option 1 — Bookmarklet (easiest)</h2>
+
+<ol class="steps">
+  <li>Show your browser's <b>bookmarks bar</b> if it's hidden: <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd> on Windows, <kbd>Cmd</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd> on Mac.</li>
+  <li><b>Drag</b> the button below onto your bookmarks bar. (Right-clicking and choosing "Save link" won't work — it has to be a drag.)
+    <br><br>
+    <a class="bookmarklet" href="javascript:(function(){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/shepherd.js@12.0.0/dist/js/shepherd.min.js';var c=document.createElement('link');c.rel='stylesheet';c.href='https://cdn.jsdelivr.net/npm/shepherd.js@12.0.0/dist/css/shepherd.css';document.head.appendChild(c);s.onload=function(){var t=new Shepherd.Tour({useModalOverlay:true,defaultStepOptions:{scrollTo:{behavior:'smooth',block:'center'},cancelIcon:{enabled:true},arrow:true,modalOverlayOpeningPadding:6,modalOverlayOpeningRadius:8}});function sec(l){var ls=document.querySelectorAll('label');for(var i=0;i<ls.length;i++){if((ls[i].textContent||'').trim().toUpperCase()===l.toUpperCase())return ls[i].parentElement;}return null;}function btn(x){var b=document.querySelectorAll('button');for(var i=0;i<b.length;i++){if((b[i].innerText||'').trim()===x)return b[i];}return null;}function rowTx(x){var a=document.querySelectorAll('div');for(var i=0;i<a.length;i++){if((a[i].innerText||'').trim()===x&&a[i].children.length<3)return a[i].parentElement;}return null;}var back={text:'Back',action:function(){t.back();}};var next={text:'Next',action:function(){t.next();}};var skip={text:'Skip tour',action:function(){t.cancel();}};var steps=[{t:'Welcome to the UniVicoustic Configurator',d:'Design acoustic panels the way you would in a showroom. This 2-minute tour shows you every control.',b:[skip,{text:'Start tour',action:function(){t.next();}}]},{t:'Pick a product type',d:'Flat (smooth), Embossed (raised texture), or Grooving (slatted). The sidebar reshapes based on what you pick.',a:function(){return sec('PRODUCT TYPE');},p:'right'},{t:'Choose a Series',d:'The design family: Wood, Fabrics, Bespoke Graphics, Ombre, or Univic Strip.',a:function(){return sec('SERIES');},p:'right'},{t:'Category or Pattern',d:'Narrows the catalog. Flat/Embossed show a Category; Grooving shows a Pattern.',a:function(){return sec('CATEGORY')||sec('PATTERN');},p:'right'},{t:'T-Profile Overlay',d:'Toggles the trim between panels in the preview — shows how seams look once installed.',a:function(){return rowTx('T-Profile Overlay');},p:'right'},{t:'Size',d:'Sheet dimensions in mm. Changing size re-tiles the preview.',a:function(){return sec('SIZE');},p:'right'},{t:'Thickness & Acoustic Rating',d:'Hover each option to see the NRC rating. Thicker panel = more absorption.',a:function(){return sec('THICKNESS');},p:'right'},{t:'Print / Designs gallery',d:'Click any swatch to apply. The preview updates instantly.',a:function(){return sec('PRINT')||sec('DESIGNS');},p:'right'},{t:'Live room preview',d:'Your panel rendered in a real scene. Updates every time you change a selection.',a:function(){return document.querySelector('main');},p:'left'},{t:'Configuration summary',d:'These chips at bottom-left mirror your live spec: T-Profile, Thickness, Size, Design, Category, Series.',a:function(){return document.querySelector('main');},p:'top'},{t:'"Fill in all selections" prompt',d:'Appears until every required field is chosen. Disappears when your config is complete.',a:function(){return document.querySelector('main');},p:'top'},{t:'Zoom controls',d:'Zoom in (+) for detail, out (−) for room scale. Current level shown as a percentage.',a:function(){return document.querySelector('main');},p:'left'},{t:'Studio Lighting',d:'Three presets: Off (neutral), Warm (incandescent), Soft (cool daylight).',a:function(){var ls=document.querySelectorAll('label,p,span,div');for(var i=0;i<ls.length;i++){if((ls[i].textContent||'').trim()==='STUDIO LIGHTING')return ls[i].parentElement;}return null;},p:'left'},{t:'Angle dial',d:'Drag the dot to rotate the key light. Degree readout updates live. Appears when Warm or Soft is active.',a:function(){var ls=document.querySelectorAll('label,p,span,div');for(var i=0;i<ls.length;i++){if((ls[i].textContent||'').trim()==='ANGLE')return ls[i].parentElement;}return null;},p:'left'},{t:'Save this configuration',d:'Stores your spec in your browser. A green "Configuration saved!" toast confirms. No sign-in needed.',a:function(){return btn('Save');},p:'bottom'},{t:'Saved configurations',d:'Opens a modal listing every saved spec. Click to reload; trash icon to delete.',a:function(){return btn('Saved');},p:'top'},{t:'Download',d:'Generates a PDF / image of your current configuration — ready to share.',a:function(){return btn('Download');},p:'bottom'},{t:'Compare two configurations',d:'Put your current design in Slot A, load another saved spec into Slot B, hit Apply to view side by side.',a:function(){return btn('Compare')||btn('Close Compare');},p:'bottom'},{t:'View Tech Specs',d:'Opens the official product spec PDF in a new tab — dimensions, NRC curves, fire rating, install.',a:function(){return btn('View Tech Specs');},p:'bottom'},{t:'Reset',d:'Clears every selection and returns to a blank configurator.',a:function(){return btn('Reset');},p:'top'},{t:'About the preview',d:'The render is indicative. Real colour, sheen, and grain vary with install and lighting.',a:function(){var ps=document.querySelectorAll('p,div,span');for(var i=0;i<ps.length;i++){if((ps[i].innerText||'').indexOf('indicative')>-1)return ps[i];}return null;},p:'top'},{t:'Need a human?',d:'The chat bubble connects you to our specifier team. Ask about lead times, custom prints, installation.',a:function(){var bs=document.querySelectorAll('button,a,div[role=button]');for(var i=0;i<bs.length;i++){var r=bs[i].getBoundingClientRect();if(r.right>window.innerWidth-100&&r.bottom>window.innerHeight-100&&r.width<80&&r.width>30)return bs[i];}return null;},p:'left'},{t:'The quickest workflow',d:'Top-to-bottom in the sidebar: Product → Series → Category → Size → Thickness → Print. Then Save / Download / Compare.'},{t:'You are ready to design',d:'Relaunch this tour anytime from your bookmarks. The chat bubble in the corner is staffed by humans.',b:[{text:'Start exploring',action:function(){t.complete();}}]}];steps.forEach(function(s,i){var step={title:s.t+' <span style=\"color:#B27B4B;font-weight:400;font-size:10px;display:block;margin-top:2px;text-transform:uppercase;letter-spacing:.5px;\">Step '+(i+1)+' of 24</span>',text:s.d,buttons:s.b||[back,next]};if(s.a){step.attachTo={element:s.a,on:s.p||'bottom'};}t.addStep(step);});t.start();};document.head.appendChild(s);})();">▶ UniVicoustic Tour</a>
+    <br><small>(Drag this button onto your bookmarks bar.)</small>
+  </li>
+  <li>Navigate to <a href="https://configurator.univicoustic.com" target="_blank">configurator.univicoustic.com</a>.</li>
+  <li>Make a few selections (e.g. Flat → Wood → Wood Classics → any print) so there's something to walk through.</li>
+  <li>Click the <b>▶ UniVicoustic Tour</b> bookmark. The 24-step walkthrough launches on top of your real site.</li>
+</ol>
+
+<h2>Option 2 — DevTools console (for developers)</h2>
+
+<ol class="steps">
+  <li>Open the configurator in a browser tab.</li>
+  <li>Press <kbd>F12</kbd> (Windows) or <kbd>Cmd</kbd> + <kbd>Option</kbd> + <kbd>I</kbd> (Mac) to open DevTools, and click the <b>Console</b> tab.</li>
+  <li>Paste the one-liner below and hit Enter:
+<pre id="oneliner">var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/shepherd.js@12.0.0/dist/js/shepherd.min.js';var c=document.createElement('link');c.rel='stylesheet';c.href='https://cdn.jsdelivr.net/npm/shepherd.js@12.0.0/dist/css/shepherd.css';document.head.appendChild(c);s.onload=function(){var t=new Shepherd.Tour({useModalOverlay:true,defaultStepOptions:{scrollTo:true,cancelIcon:{enabled:true},arrow:true}});t.addStep({title:'UniVicoustic walkthrough',text:'Tour loaded. For the full 24-step version, use the bookmarklet on the preview page or ask your dev to deploy univicoustic-tour.js.',buttons:[{text:'OK',action:function(){t.complete();}}]});t.start();};document.head.appendChild(s);</pre>
+    <button class="copy" onclick="navigator.clipboard.writeText(document.getElementById('oneliner').innerText);this.innerText='Copied!';setTimeout(()=>this.innerText='Copy to clipboard',1500);">Copy to clipboard</button>
+  </li>
+  <li>A mini test tooltip appears. For the full 24-step tour, paste the contents of <code>univicoustic-tour.js</code> into the console instead.</li>
+</ol>
+
+<h2>Option 3 — Deploy it (for your developer)</h2>
+
+<p>Once you're happy with the tour, have your developer add this line just before <code>&lt;/body&gt;</code> in the configurator's main template:</p>
+
+<pre>&lt;script src="/assets/univicoustic-tour.js" defer&gt;&lt;/script&gt;</pre>
+
+<p>…using the <code>univicoustic-tour.js</code> file in this folder. The tour will auto-launch for every first-time visitor and skip thereafter.</p>
+
+<div class="note">
+<b>Tip:</b> The bookmarklet stays on your bookmarks bar forever — you can click it on any page-refresh or session to replay the tour while reviewing. It doesn't save anything to the actual site.
+</div>
+
+</body>
+</html>

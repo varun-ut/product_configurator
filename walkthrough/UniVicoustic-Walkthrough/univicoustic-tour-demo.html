@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>UniVicoustic Walkthrough — Local Demo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@12.0.0/dist/css/shepherd.css">
+<style>
+  :root {
+    --brand: #B27B4B;
+    --brand-dark: #9a683d;
+    --ink: #0f0f0f;
+    --muted: #888;
+    --line: #e6e6e6;
+    --panel: #fff;
+    --bg: #f7f7f7;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); }
+
+  /* Top bar */
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: #fff; border-bottom: 1px solid var(--line); }
+  .logo { font-weight: 700; letter-spacing: 1px; font-size: 18px; }
+  .logo span { color: var(--brand); }
+  .logo small { display:block; font-size: 9px; color: var(--brand); letter-spacing: 2px; font-weight: 400; margin-top:2px; }
+  .topbar-actions { display: flex; gap: 8px; }
+  .topbar button { padding: 7px 14px; font-size: 13px; border-radius: 8px; border: 1px solid var(--line); background: #fff; cursor: pointer; display:inline-flex; align-items:center; gap:6px; }
+  .topbar button.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+  .topbar button.primary:hover { background: var(--brand-dark); }
+  .topbar button:hover { background: #f5f5f5; }
+
+  /* Layout */
+  .shell { display: grid; grid-template-columns: 280px 1fr; height: calc(100vh - 57px); }
+
+  /* Sidebar */
+  .sidebar { background: #fff; border-right: 1px solid var(--line); padding: 18px; overflow-y: auto; position: relative; }
+  .section-header { display: block; text-transform: uppercase; font-size: 11px; letter-spacing: 1px; color: var(--muted); font-weight: 500; margin: 18px 0 8px; }
+  .section-header:first-child { margin-top: 0; }
+  .segmented { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .segmented button { flex: 1; padding: 8px; font-size: 13px; background: #fff; border: 0; cursor: pointer; }
+  .segmented button.active { background: var(--brand); color: #fff; }
+  .select {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px;
+    font-size: 13px; background: #fff url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'><polyline points='6 9 12 15 18 9'/></svg>") no-repeat right 12px center;
+    appearance: none; -webkit-appearance: none;
+  }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: #f4f4f4; border-radius: 8px; font-size: 13px; }
+  .toggle { width: 36px; height: 20px; background: var(--brand); border-radius: 20px; position: relative; cursor: pointer; }
+  .toggle::after { content: ''; position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; background: #fff; border-radius: 50%; transition: all .2s; }
+  .print-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+  .swatch { aspect-ratio: 1; border-radius: 6px; background-size: cover; cursor: pointer; border: 2px solid transparent; }
+  .swatch.active { border-color: var(--brand); }
+  .swatch.s1 { background: linear-gradient(135deg, #3a2417, #6b4128 60%, #2f1c10); }
+  .swatch.s2 { background: linear-gradient(135deg, #8a4a28, #b26a3c 60%, #6a3820); }
+  .swatch.s3 { background: linear-gradient(135deg, #8e7a5a, #b59c77 60%, #7a6748); }
+  .swatch.s4 { background: linear-gradient(135deg, #9c7a4a, #b8956a 60%, #8a6a3e); }
+  .swatch.s5 { background: linear-gradient(135deg, #c4915b, #dcae7a 60%, #a97742); }
+  .swatch.s6 { background: linear-gradient(135deg, #a8512e, #d0733f 60%, #8e4321); }
+  .sidebar-footer { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px 18px 18px; position: absolute; bottom: 40px; left: 0; right: 0; background: #fff; border-top: 1px solid var(--line); padding-top: 12px; }
+  .sidebar-footer button { padding: 10px; font-size: 13px; border: 1px solid var(--line); background: #fff; border-radius: 8px; cursor: pointer; display:inline-flex; align-items:center; justify-content:center; gap:6px; position: relative; }
+  .badge { position: absolute; top: -6px; right: -6px; background: var(--brand); color: #fff; font-size: 10px; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; }
+  .disclaimer { position: absolute; bottom: 0; left: 0; right: 0; padding: 8px 18px; font-size: 10px; color: #aaa; border-top: 1px solid var(--line); background: #fff; }
+
+  /* Preview */
+  .preview { position: relative; padding: 24px; overflow: hidden; }
+  .canvas { width: 100%; height: 100%; border-radius: 12px; background: linear-gradient(135deg, #4a2e1a, #2a180c); position: relative; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,.08); }
+  .canvas::before {
+    content: ''; position: absolute; inset: 0;
+    background-image: repeating-linear-gradient(90deg, rgba(255,255,255,.05) 0 30px, rgba(0,0,0,.1) 30px 32px);
+  }
+  .scene-chair { position: absolute; bottom: 10%; right: 15%; width: 140px; height: 180px; background: radial-gradient(ellipse at 30% 30%, #e8d4b8, #b8936a); border-radius: 50% 50% 20% 20%; }
+  .hint-banner { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); background: rgba(20,20,20,.85); color: #fff; padding: 10px 16px; border-radius: 24px; font-size: 13px; display: inline-flex; align-items: center; gap: 8px; }
+  .config-tags { position: absolute; bottom: 40px; left: 40px; display: flex; flex-direction: column; gap: 4px; }
+  .chip { background: #fff; border: 1px solid var(--line); padding: 4px 10px; border-radius: 6px; font-size: 11px; letter-spacing: .3px; }
+  .chip .k { color: #aaa; text-transform: uppercase; margin-right: 6px; font-size: 10px; }
+  .zoom-controls { position: absolute; top: 48px; right: 48px; display: flex; flex-direction: column; align-items: center; gap: 4px; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 6px; }
+  .zoom-controls button { width: 28px; height: 28px; border: 0; background: transparent; cursor: pointer; color: #666; font-size: 16px; }
+  .zoom-controls .pct { font-size: 10px; color: #666; padding: 2px; }
+  .lighting { position: absolute; bottom: 24px; right: 24px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; width: 130px; }
+  .lighting h4 { margin: 0 0 8px; font-size: 10px; letter-spacing: 1px; color: var(--muted); font-weight: 500; }
+  .lighting .opt { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; font-size: 13px; cursor: pointer; }
+  .lighting .opt.active { background: var(--brand); color: #fff; }
+  .lighting .opt .dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; }
+  .lighting .opt.warm .dot { background: #e8a34b; }
+  .lighting .opt.soft .dot { background: #7fb4e8; }
+  .angle-dial { margin-top: 14px; text-align: center; }
+  .angle-dial h5 { font-size: 10px; color: var(--muted); margin: 0 0 6px; letter-spacing: 1px; }
+  .dial {
+    width: 72px; height: 72px; border-radius: 50%; border: 2px solid var(--line); margin: 0 auto; position: relative;
+  }
+  .dial::before { content: ''; position: absolute; left: 50%; top: 4px; width: 2px; height: 30px; background: #ccc; transform-origin: bottom; transform: translateX(-50%) rotate(40deg); }
+  .dial .knob { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: var(--brand); top: 4px; left: 55%; }
+  .dial-label { font-size: 11px; color: #666; margin-top: 4px; }
+  .chat-bubble { position: fixed; bottom: 20px; right: 20px; width: 48px; height: 48px; background: var(--brand); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 22px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,.2); }
+
+  /* Tour theme override */
+  .shepherd-theme-uv .shepherd-content { border-radius: 12px; font-family: inherit; }
+  .shepherd-theme-uv .shepherd-header { background: #fff; padding: 16px 18px 4px; border-radius: 12px 12px 0 0; }
+  .shepherd-theme-uv .shepherd-title { color: var(--ink); font-weight: 600; font-size: 15px; }
+  .shepherd-theme-uv .shepherd-text { color: #444; font-size: 14px; line-height: 1.55; padding: 6px 18px 16px; }
+  .shepherd-theme-uv .shepherd-footer { padding: 0 18px 16px; }
+  .shepherd-theme-uv .shepherd-button {
+    background: var(--brand); color: #fff; border-radius: 8px;
+    padding: 8px 14px; font-size: 13px; font-weight: 500;
+  }
+  .shepherd-theme-uv .shepherd-button:hover { background: var(--brand-dark); }
+  .shepherd-theme-uv .shepherd-button.shepherd-button-secondary {
+    background: #f3f3f3; color: #444;
+  }
+  .shepherd-theme-uv .shepherd-button.shepherd-button-secondary:hover { background: #e6e6e6; }
+  .uv-tour-progress { font-size: 10px; color: var(--brand); font-weight: 400; margin-top: 2px; letter-spacing: .5px; text-transform: uppercase; }
+  .shepherd-modal-overlay-container { fill: rgba(15,15,15,0.55); }
+
+  .relaunch-note { position: fixed; top: 70px; right: 24px; background: #fff8ec; border: 1px solid #f0d9b3; padding: 10px 14px; border-radius: 8px; font-size: 12px; color: #8a6232; z-index: 1; max-width: 260px; }
+  .relaunch-note button { margin-top: 6px; padding: 5px 10px; background: var(--brand); color: #fff; border: 0; border-radius: 6px; cursor: pointer; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">UNI<span>V</span>COUSTIC<small>MAKES SOUND SENSE</small></div>
+  <div class="topbar-actions">
+    <button id="btn-save">&#9825; Save</button>
+    <button id="btn-download" class="primary">&#8595; Download</button>
+    <button id="btn-compare">&#9776; Compare</button>
+    <button id="btn-tech">&#9783; View Tech Specs</button>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="sidebar">
+    <label class="section-header">PRODUCT TYPE</label>
+    <div class="segmented">
+      <button class="active">Flat</button>
+      <button>Embossed</button>
+      <button>Grooving</button>
+    </div>
+
+    <label class="section-header">SERIES</label>
+    <select class="select"><option>Wood</option></select>
+
+    <label class="section-header">CATEGORY</label>
+    <select class="select"><option>Wood Classics</option></select>
+
+    <div class="toggle-row" id="tprofile-row" style="margin-top:10px;">
+      <span>T-Profile Overlay</span>
+      <div class="toggle"></div>
+    </div>
+
+    <label class="section-header">SIZE</label>
+    <select class="select"><option>1200 × 2400</option></select>
+
+    <label class="section-header">THICKNESS</label>
+    <select class="select"><option>12mm (PET Panel)</option></select>
+
+    <label class="section-header">PRINT</label>
+    <div class="print-grid">
+      <div class="swatch s1 active"></div>
+      <div class="swatch s2"></div>
+      <div class="swatch s3"></div>
+      <div class="swatch s4"></div>
+      <div class="swatch s5"></div>
+      <div class="swatch s6"></div>
+    </div>
+
+    <div class="sidebar-footer">
+      <button id="btn-reset">&#8634; Reset</button>
+      <button id="btn-saved">&#9825; Saved <span class="badge">1</span></button>
+    </div>
+    <div class="disclaimer">*This configurator provides an indicative visualization only. Actual product appearance may vary due to lighting conditions, surface textures, material finishes, and installation environment.</div>
+  </aside>
+
+  <main class="preview">
+    <div class="canvas">
+      <div class="scene-chair"></div>
+      <div class="zoom-controls">
+        <button>&#43;</button>
+        <div class="pct">100%</div>
+        <button>&minus;</button>
+      </div>
+      <div class="lighting" id="lighting">
+        <h4>STUDIO LIGHTING</h4>
+        <div class="opt"><span class="dot"></span> Off</div>
+        <div class="opt warm active"><span class="dot"></span> Warm</div>
+        <div class="opt soft"><span class="dot"></span> Soft</div>
+        <div class="angle-dial">
+          <h5>ANGLE</h5>
+          <div class="dial"><div class="knob"></div></div>
+          <div class="dial-label">40°</div>
+        </div>
+      </div>
+      <div class="config-tags">
+        <div class="chip"><span class="k">T-Profile</span>On</div>
+        <div class="chip"><span class="k">Thickness</span>12mm (PET Panel)</div>
+        <div class="chip"><span class="k">Size</span>1200 × 2400</div>
+        <div class="chip"><span class="k">Design</span>WD-NC-01</div>
+        <div class="chip"><span class="k">Category</span>Wood Classics</div>
+        <div class="chip"><span class="k">Series</span>Wood</div>
+      </div>
+      <div class="hint-banner" id="hint-banner"><span>&#9432;</span> Please fill in all selections to see the full preview.</div>
+    </div>
+  </main>
+</div>
+
+<div class="chat-bubble" id="chat-bubble">&#128172;</div>
+
+<div class="relaunch-note">
+  This is a simplified demo of the UniVicoustic Configurator walkthrough. Click below to replay the tour.
+  <br><button onclick="window.startUnivicousticTour && window.startUnivicousticTour()">Replay tour</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/shepherd.js@12.0.0/dist/js/shepherd.min.js"></script>
+<script>
+/* -----  Inline copy of the drop-in tour, adapted for the demo layout. ----- */
+(function () {
+  'use strict';
+  var TOTAL = 24;
+
+  function sectionBlockByLabel(label) {
+    var labels = document.querySelectorAll('.section-header');
+    for (var i = 0; i < labels.length; i++) {
+      if ((labels[i].textContent || '').trim().toUpperCase() === label.toUpperCase()) {
+        var next = labels[i].nextElementSibling;
+        // Wrap label+control for nicer highlight:
+        var wrap = document.createElement('div');
+        wrap.style.display = 'contents';
+        return next;
+      }
+    }
+    return null;
+  }
+  function $byId(id) { return document.getElementById(id); }
+
+  function titleWithStep(idx, title) {
+    return title + '<div class="uv-tour-progress">Step ' + idx + ' of ' + TOTAL + '</div>';
+  }
+
+  function buildTour() {
+    var tour = new Shepherd.Tour({
+      useModalOverlay: true,
+      defaultStepOptions: {
+        classes: 'shepherd-theme-uv',
+        scrollTo: { behavior: 'smooth', block: 'center' },
+        cancelIcon: { enabled: true },
+        arrow: true,
+        modalOverlayOpeningPadding: 6,
+        modalOverlayOpeningRadius: 8
+      }
+    });
+
+    var back = { text: 'Back', classes: 'shepherd-button-secondary', action: function () { tour.back(); } };
+    var next = { text: 'Next', action: function () { tour.next(); } };
+    var skip = { text: 'Skip tour', classes: 'shepherd-button-secondary', action: function () { tour.cancel(); } };
+
+    var steps = [
+      { i:1, t:'Welcome to the UniVicoustic Configurator',
+        d:'Design acoustic panels the way you would in a showroom — pick a product, dial in a finish, and see it in a real room. This 2-minute tour shows you every control.',
+        b:[skip, { text:'Start tour', action:function(){tour.next();} }] },
+      { i:2, t:'Pick a product type',
+        d:'Three panel families. <b>Flat</b> — smooth print. <b>Embossed</b> — raised texture. <b>Grooving</b> — fluted/slatted. The sidebar below reshapes based on your choice.',
+        attach:function(){return document.querySelector('.segmented');}, on:'right' },
+      { i:3, t:'Choose a Series',
+        d:'The design family: <i>Wood, Fabrics, Bespoke Graphics, Ombre,</i> or <i>Univic Strip</i>. Each unlocks its own catalog below.',
+        attach:function(){return sectionBlockByLabel('SERIES');}, on:'right' },
+      { i:4, t:'Category or Pattern',
+        d:'After Series, narrow the catalog. <b>Flat/Embossed</b> show a Category dropdown (Wood Classics, Classic Parquet, Wood Perforations). <b>Grooving</b> instead shows a Pattern (Single Groove, Double Groove).',
+        attach:function(){return sectionBlockByLabel('CATEGORY');}, on:'right' },
+      { i:5, t:'T-Profile Overlay',
+        d:'Toggles the T-profile trim between panels in the preview. Shows how the seams will actually read on the installed wall.',
+        attach:function(){return $byId('tprofile-row');}, on:'right' },
+      { i:6, t:'Size',
+        d:'Sheet dimensions in millimetres. Only sizes compatible with the current series appear. Changing size re-tiles the preview.',
+        attach:function(){return sectionBlockByLabel('SIZE');}, on:'right' },
+      { i:7, t:'Thickness & Acoustic Rating',
+        d:'Each option lists its substrate (PET Panel / PET Wool). Hover to see the <b>NRC</b> acoustic rating — e.g. <i>"0.45 NRC can be increased to 0.9"</i>. Thicker panel = more absorption.',
+        attach:function(){return sectionBlockByLabel('THICKNESS');}, on:'right' },
+      { i:8, t:'Print / Designs gallery',
+        d:'Thumbnail grid of every finish in the current category. Click a swatch to apply it — the room preview updates instantly.',
+        attach:function(){return sectionBlockByLabel('PRINT');}, on:'right' },
+      { i:9, t:'Live room preview',
+        d:'Your panel rendered in a real scene (office, lounge, studio). Updates every time you change a selection.',
+        attach:function(){return document.querySelector('.canvas');}, on:'left' },
+      { i:10, t:'Configuration summary',
+        d:'These chips at the bottom-left mirror your current spec: T-Profile, Thickness, Size, Design, Category, Series. A quick read-out.',
+        attach:function(){return document.querySelector('.config-tags');}, on:'right' },
+      { i:11, t:'"Fill in all selections" prompt',
+        d:'This dark banner appears until you\'ve chosen every required field. Once it disappears, your config is complete and ready to save or download.',
+        attach:function(){return $byId('hint-banner');}, on:'top' },
+      { i:12, t:'Zoom controls',
+        d:'Zoom in (+) for texture detail, out (−) for room scale. The current zoom level is shown as a percentage.',
+        attach:function(){return document.querySelector('.zoom-controls');}, on:'left' },
+      { i:13, t:'Studio Lighting',
+        d:'Three presets: <b>Off</b> (neutral), <b>Warm</b> (incandescent), <b>Soft</b> (cool daylight). Each tells a different story about how the panel reads.',
+        attach:function(){return $byId('lighting');}, on:'left' },
+      { i:14, t:'Angle dial',
+        d:'Drag the dot around the dial to rotate the key light. Degree readout updates live. Appears when Warm or Soft is active.',
+        attach:function(){return document.querySelector('.angle-dial');}, on:'left' },
+      { i:15, t:'Save this configuration',
+        d:'Stores the current spec in your browser (no sign-in needed). A green "Configuration saved!" toast confirms.',
+        attach:function(){return $byId('btn-save');}, on:'bottom' },
+      { i:16, t:'Saved configurations',
+        d:'Opens a modal listing every saved spec with a colour swatch and date. Click to reload, trash icon to delete. The badge shows your count.',
+        attach:function(){return $byId('btn-saved');}, on:'top' },
+      { i:17, t:'Download',
+        d:'The primary action. Generates a PDF / image of your current configuration — ready for clients, architects, installers.',
+        attach:function(){return $byId('btn-download');}, on:'bottom' },
+      { i:18, t:'Compare two configurations',
+        d:'Puts your current design in <b>Slot A</b> and lets you drop another saved spec into <b>Slot B</b>. Hit Apply to view side by side.',
+        attach:function(){return $byId('btn-compare');}, on:'bottom' },
+      { i:19, t:'View Tech Specs',
+        d:'Opens the official spec sheet PDF for your selected product — dimensions, NRC curves, fire rating, installation. New tab.',
+        attach:function(){return $byId('btn-tech');}, on:'bottom' },
+      { i:20, t:'Reset',
+        d:'Clears every selection and returns to a blank configurator. Handy when starting over without reloading.',
+        attach:function(){return $byId('btn-reset');}, on:'top' },
+      { i:21, t:'About the preview',
+        d:'The render is <i>indicative</i>. Real colour, sheen, and grain vary with lighting and install. Order a physical sample for spec-grade reference.',
+        attach:function(){return document.querySelector('.disclaimer');}, on:'top' },
+      { i:22, t:'Need a human?',
+        d:'The chat bubble (bottom-right) connects you to our specifier team. Ask about lead times, custom prints, bulk pricing, install questions.',
+        attach:function(){return $byId('chat-bubble');}, on:'left' },
+      { i:23, t:'The quickest workflow',
+        d:'Top-to-bottom in the sidebar: Product → Series → Category → Size → Thickness → Print. Then Save / Download / Compare. You can swap any selection at any time.' },
+      { i:24, t:"You're ready to design",
+        d:'Relaunch this tour anytime from the help menu. If anything is unclear, the chat bubble in the corner is staffed by humans who know the products.',
+        b:[{ text:'Start exploring', action:function(){tour.complete();} }] }
+    ];
+
+    steps.forEach(function (s) {
+      var step = {
+        id: 'uv-step-' + s.i,
+        title: titleWithStep(s.i, s.t),
+        text: s.d,
+        buttons: s.b || [back, next]
+      };
+      if (s.attach) {
+        step.attachTo = { element: s.attach, on: s.on || 'bottom' };
+      }
+      tour.addStep(step);
+    });
+    return tour;
+  }
+
+  window.startUnivicousticTour = function () { buildTour().start(); };
+
+  // Auto-start on first load.
+  var KEY = 'uv_tour_demo_seen';
+  try {
+    if (!localStorage.getItem(KEY)) {
+      setTimeout(function () {
+        var tour = buildTour();
+        tour.on('complete', function(){ try{ localStorage.setItem(KEY,'1'); }catch(e){} });
+        tour.on('cancel',   function(){ try{ localStorage.setItem(KEY,'1'); }catch(e){} });
+        tour.start();
+      }, 600);
+    }
+  } catch (e) { /* ignore storage errors */ }
+})();
+</script>
+</body>
+</html>

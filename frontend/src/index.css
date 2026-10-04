@@ -9,6 +9,21 @@ body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overflow: hidden;
+    height: 100vh;
+    /* Never allow horizontal scroll, regardless of viewport. */
+    overflow-x: hidden;
+    max-width: 100vw;
+}
+
+/* Mobile: unlock the body so the page itself can scroll vertically.
+   Horizontal stays clipped via the rules above. */
+@media (max-width: 767px) {
+    body {
+        overflow-y: auto;
+        height: auto;
+        min-height: 100vh;
+    }
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -33,8 +48,15 @@ code {
         --secondary-foreground: 222.2 47.4% 11.2%;
         --muted: 210 40% 96.1%;
         --muted-foreground: 215 16% 47%;
-        --accent: 24 95% 53%;
-        --accent-foreground: 0 0% 100%;
+        /* ── Brand accent ───────────────────────────────────────────────
+           Two variables drive every accent-coloured surface in the app
+           (primary buttons, selected swatches, dropdown triggers, etc.).
+           To change the brand colour: edit just --accent and --accent-hover.
+           Format: H S% L%  (HSL components, space-separated — required by
+           Tailwind's <alpha-value> substitution; see tailwind.config.js). */
+        --accent: 0 61% 59%;          /* main accent */
+        --accent-foreground: 0 0% 100%;/* text on accent backgrounds */
+        --accent-hover: 0 47% 52%;    /* ~6% darker, used on hover */
         --destructive: 0 84.2% 60.2%;
         --destructive-foreground: 0 0% 98%;
         --border: 214.3 31.8% 91.4%;
@@ -56,6 +78,39 @@ code {
     body {
         @apply bg-background text-foreground;
     }
+}
+
+/* ── Accent-button edge-artifact fix ────────────────────────────────────
+   The faint hairline on saturated accent buttons is a sub-pixel
+   anti-aliasing artifact at the rounded corners — confirmed by the fact
+   that it vanishes at ≥200% browser zoom (more physical pixels per CSS
+   pixel = AA band too thin to see). It's NOT a stray box-shadow / border
+   / browser decoration; nulling those alone doesn't fix it.
+
+   Strategy:
+     1. background-clip: padding-box   — keep the bg away from the AA edge
+     2. border: 1px solid <same accent> — the AA band now lives inside a
+        border that's already the accent colour, so the lighter sampled
+        pixels are invisible.
+     3. transform: translateZ(0)        — promote to its own compositing
+        layer; GPU edge sampler is sharper than the painter's.
+   Belt-and-braces decoration nullers stay in place too.                  */
+button.bg-accent,
+button.hover\:bg-accent-hover {
+    background-image: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    filter: none !important;
+    /* anti-aliasing fix */
+    background-clip: padding-box !important;
+    border: 1px solid hsl(var(--accent)) !important;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+}
+button.hover\:bg-accent-hover:hover {
+    border-color: hsl(var(--accent-hover)) !important;
 }
 
 /* Custom scrollbar */
@@ -97,4 +152,25 @@ code {
 
 .animate-pulse-subtle {
     animation: pulse-subtle 2s ease-in-out infinite;
+}
+
+/* ── Brevo Conversations widget — keep it clear of our own chat button ─────
+   Brevo's launcher is injected by GTM at bottom:20px / right:20px with
+   z-index 9999, landing directly on top of our chat FAB (bottom-6 right-6,
+   z-[300], 56px). Because Brevo's z-index is far higher, our button was
+   completely unclickable.
+
+   Desktop: shift Brevo left so the two sit side by side with a 16px gap.
+   Its right edge lands 96px from the viewport edge; our FAB's left edge is
+   at 80px. Its open 380x600 panel stays fully on screen.
+
+   Below 768px this rule deliberately does NOT apply: Brevo resizes its own
+   panel to fit narrow screens (335px at 375px wide), and forcing `right`
+   there would break that. On mobile our FAB moves up instead — see the
+   `bottom-24 md:bottom-6` classes on the chat button in Configurator.jsx.
+   Keep that breakpoint and this one in step. */
+@media (min-width: 768px) {
+    #brevo-conversations {
+        right: 96px !important;
+    }
 }

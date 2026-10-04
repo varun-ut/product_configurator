@@ -35,9 +35,13 @@ module.exports = {
   				DEFAULT: 'hsl(var(--muted))',
   				foreground: 'hsl(var(--muted-foreground))'
   			},
+  			/* Brand accent — driven by --accent / --accent-hover in index.css.
+  			   The `/ <alpha-value>` token lets Tailwind opacity modifiers
+  			   like bg-accent/10 and bg-accent/[0.04] work correctly. */
   			accent: {
-  				DEFAULT: 'hsl(var(--accent))',
-  				foreground: 'hsl(var(--accent-foreground))'
+  				DEFAULT: 'hsl(var(--accent) / <alpha-value>)',
+  				foreground: 'hsl(var(--accent-foreground))',
+  				hover: 'hsl(var(--accent-hover) / <alpha-value>)'
   			},
   			destructive: {
   				DEFAULT: 'hsl(var(--destructive))',

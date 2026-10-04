@@ -1,0 +1,116 @@
+{
+  "flat-embossed-vmd": {
+    "fire_rating": "Class A (ASTM E84)",
+    "nrc_rating": "0.85 - 0.95",
+    "sustainability": [
+      "FSC Certified",
+      "GREENGUARD Gold",
+      "Red List Free"
+    ],
+    "material": "High-Density Polyester Fiber",
+    "thickness_mm": "12-25mm",
+    "weight_kg_m2": "2.4 - 4.8",
+    "installation": "Adhesive / Mechanical Fix",
+    "warranty": "10 Years",
+    "certifications": [
+      "ISO 14001",
+      "ISO 9001",
+      "OEKO-TEX Standard 100"
+    ]
+  },
+  "colored-hd-ombre": {
+    "fire_rating": "Class A (ASTM E84)",
+    "nrc_rating": "0.80 - 0.90",
+    "sustainability": [
+      "Recycled Content 60%",
+      "GREENGUARD Gold",
+      "Red List Free"
+    ],
+    "material": "HD Acoustic Felt",
+    "thickness_mm": "9-12mm",
+    "weight_kg_m2": "1.8 - 2.2",
+    "installation": "Adhesive Mount",
+    "warranty": "8 Years",
+    "certifications": [
+      "ISO 14001",
+      "Declare Label",
+      "HPD"
+    ]
+  },
+  "ombre": {
+    "fire_rating": "Class A (ASTM E84)",
+    "nrc_rating": "0.80 - 0.90",
+    "sustainability": [
+      "Recycled Content 60%",
+      "GREENGUARD Gold",
+      "Red List Free"
+    ],
+    "material": "HD Acoustic Felt",
+    "thickness_mm": "9-12mm",
+    "weight_kg_m2": "1.8 - 2.2",
+    "installation": "Adhesive Mount",
+    "warranty": "8 Years",
+    "certifications": [
+      "ISO 14001",
+      "Declare Label",
+      "HPD"
+    ]
+  },
+  "wood": {
+    "fire_rating": "Class A (ASTM E84)",
+    "nrc_rating": "0.85 - 0.95",
+    "sustainability": [
+      "FSC Certified",
+      "GREENGUARD Gold",
+      "Red List Free"
+    ],
+    "material": "High-Density Polyester Fiber",
+    "thickness_mm": "12-25mm",
+    "weight_kg_m2": "2.4 - 4.8",
+    "installation": "Adhesive / Mechanical Fix",
+    "warranty": "10 Years",
+    "certifications": [
+      "ISO 14001",
+      "ISO 9001",
+      "OEKO-TEX Standard 100"
+    ]
+  },
+  "fabrics": {
+    "fire_rating": "Class A (ASTM E84)",
+    "nrc_rating": "0.85 - 0.95",
+    "sustainability": [
+      "FSC Certified",
+      "GREENGUARD Gold",
+      "Red List Free"
+    ],
+    "material": "High-Density Polyester Fiber",
+    "thickness_mm": "12-25mm",
+    "weight_kg_m2": "2.4 - 4.8",
+    "installation": "Adhesive / Mechanical Fix",
+    "warranty": "10 Years",
+    "certifications": [
+      "ISO 14001",
+      "ISO 9001",
+      "OEKO-TEX Standard 100"
+    ]
+  },
+  "vicstrip": {
+    "fire_rating": "Class B (ASTM E84)",
+    "nrc_rating": "0.70 - 0.85",
+    "sustainability": [
+      "FSC Certified Wood",
+      "Low VOC",
+      "Red List Free"
+    ],
+    "material": "MDF Core + Acoustic Backing",
+    "thickness_mm": "12-25mm",
+    "weight_kg_m2": "3.2 - 5.5",
+    "installation": "Rail System / Direct Fix",
+    "warranty": "15 Years",
+    "certifications": [
+      "ISO 14001",
+      "PEFC",
+      "EPD Verified"
+    ]
+  }
+}

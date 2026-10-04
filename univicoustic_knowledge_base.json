@@ -1,0 +1,311 @@
+{
+  "brand": "UniVicoustic",
+  "contact": {
+    "website": "www.univicoustic.com",
+    "email": "info@univicoustic.com",
+    "phone": "+91 86556 87649",
+    "address": "9th Floor, Lotus Business Park, off New Link Road, Veera Desai Industrial Estate, Andheri West, Mumbai, Maharashtra 400053"
+  },
+  "common_composition": "60% post-consumer PET (derived from plastic bottles), engineered for 100% recyclability post-consumption.",
+  "common_installation": {
+    "application": "Wall",
+    "fixing_method": "Silicone base glue",
+    "environment": "Controlled interior environments only. Not recommended near heat sources or under prolonged direct sunlight."
+  },
+  "common_certifications": {
+    "quality_management": "ISO 9001:2015",
+    "environmental_management": "ISO 14001:2015",
+    "occupational_health_safety": "ISO 45001:2018",
+    "sustainability": ["IGBC", "GreenPro", "Environmental Product Declaration (EPD)", "Red List Free"],
+    "health_iaq": {
+      "anti_fungal": "ASTM G:21",
+      "formaldehyde_release": "ISO 14184-2 (No Formaldehyde)"
+    },
+    "product_performance_tests": {
+      "thermal_conductivity": "ASTM C 518-21",
+      "colour_fastness_to_light": "ISO 105 B02"
+    }
+  },
+  "recommended_spaces_common": [
+    "Executive cabins",
+    "Boardrooms / Conference rooms",
+    "Hotel suite bedrooms",
+    "Private home theatres",
+    "Art galleries and exhibition corridors",
+    "Boutique lounges",
+    "Meditation / wellness rooms",
+    "Premium lounge areas (airports, clubs, etc.)"
+  ],
+  "disclaimers": [
+    "Panels are designed to perform in controlled interior environments. Installation near heat sources or under prolonged direct sunlight is not recommended.",
+    "Minor colour variations between production batches are inherent to the material and are not considered defects.",
+    "Acoustic performance values are indicative and may vary based on panel design, size, mounting, and installation conditions.",
+    "Variations in texture and pattern are a natural characteristic of fibre-based PET materials.",
+    "Sustainability credentials are aligned with EPD standards and supported by third-party verification where applicable.",
+    "UniVicoustic is not liable for performance or appearance deviations arising from improper installation, unsuitable site conditions, or deviation from recommended application guidelines."
+  ],
+  "products": [
+    {
+      "product_id": "flat_pet_wool",
+      "name": "Flat Panel VMT (PET Wool)",
+      "material": "PET Wool (lower density, more porous)",
+      "surface_type": "Flat",
+      "description": "Engineered from recycled PET, the VMT Flat Panel series addresses mid-to-high frequency sound control with consistency and precision. The flat surface supports high-resolution printing for acoustic applications and customised branding.",
+      "thicknesses_mm": [20, 40],
+      "fire_rating": {
+        "en_13501_part_1": "C, s2, d0",
+        "astm_e84": true,
+        "bs_476_part_6_7": true,
+        "astm_d_2859": false,
+        "bs_5852_part_1": false,
+        "note": "Test certificates available on request."
+      },
+      "acoustic_performance": [
+        {
+          "thickness_mm": 20,
+          "nrc_direct_fix": 0.70,
+          "astm_nrc": 0.70,
+          "iso_alpha_w": 1.04,
+          "max_with_backing_infill": 0.80
+        },
+        {
+          "thickness_mm": 40,
+          "nrc_direct_fix": 0.90,
+          "astm_nrc": 0.90,
+          "iso_alpha_w": 1.01,
+          "max_with_backing_infill": 0.80,
+          "note": "Direct-fix NRC (0.90) is higher than rated backing/infill value; direct-fix is the headline performance."
+        }
+      ],
+      "dimensions_mm": [
+        {"L": 2800, "W": 1200, "thickness_mm": 20, "units_per_box": 4, "box_weight_kg": 32},
+        {"L": 2400, "W": 1200, "thickness_mm": 20, "units_per_box": [2, 4, 8], "box_weight_kg": [16, 28, 51]},
+        {"L": 1200, "W": 600, "thickness_mm": 20, "units_per_box": 8, "box_weight_kg": 14},
+        {"L": 600, "W": 600, "thickness_mm": 20, "units_per_box": 8, "box_weight_kg": 8},
+        {"L": 2800, "W": 1200, "thickness_mm": 40, "units_per_box": 4, "box_weight_kg": 19},
+        {"L": 2400, "W": 1200, "thickness_mm": 40, "units_per_box": [2, 4], "box_weight_kg": [16, 28]},
+        {"L": 1200, "W": 600, "thickness_mm": 40, "units_per_box": 8, "box_weight_kg": 14},
+        {"L": 600, "W": 600, "thickness_mm": 40, "units_per_box": 8, "box_weight_kg": 8}
+      ],
+      "available_series": {
+        "fabrics": ["Designer Textile", "Luxury Textures", "Modern Corporate"],
+        "ligna": ["Classic Parquet", "Wood Classics", "Wood perforation"],
+        "bespoke_graphics": ["Line & Texture", "Rhythm & Repeat", "Woven Brushwork", "Patterned weaves", "Indian Modern", "Quiet Bloom", "Nature Reimagined", "Color block", "Fun & Fantasy", "Soft Texture", "Marble", "Leather"]
+      },
+      "features": [
+        "Premium curated design library",
+        "High acoustic precision, lab-tested",
+        "Custom palettes (project-specific, MOQ-based)",
+        "Recyclable components, circular use",
+        "Easy-clean finish",
+        "Effortless maintenance",
+        "Durable"
+      ]
+    },
+    {
+      "product_id": "flat_pet",
+      "name": "Flat Panel VMT (PET)",
+      "material": "High-density recycled PET",
+      "surface_type": "Flat",
+      "description": "VMT HD panels unite acoustic precision with architectural intent. Engineered from high-density recycled PET, they offer broad-spectrum sound control and a refined printed surface — making performance and design mutually reinforcing rather than competing priorities.",
+      "thicknesses_mm": [12, 25],
+      "fire_rating": {
+        "en_13501_part_1": "B, s1, d0",
+        "astm_e84": true,
+        "bs_476_part_6_7": true,
+        "astm_d_2859": true,
+        "bs_5852_part_1": true,
+        "note": "Test certificates available on request. Class B fire rating is higher than PET Wool's Class C — preferred for hospitality, airports, healthcare."
+      },
+      "acoustic_performance": [
+        {
+          "thickness_mm": 12,
+          "nrc_direct_fix": 0.45,
+          "astm_nrc": 0.45,
+          "iso_alpha_w": 0.90,
+          "max_with_backing_infill": 0.80,
+          "max_with_air_gap": 0.90
+        },
+        {
+          "thickness_mm": 25,
+          "nrc_direct_fix": 0.70,
+          "astm_nrc": 0.70,
+          "iso_alpha_w": 0.96,
+          "max_with_backing_infill": 0.80,
+          "max_with_air_gap": 0.90
+        }
+      ],
+      "dimensions_mm": [
+        {"L": 2780, "W": 1200, "thickness_mm": 12, "units_per_box": 8, "box_weight_kg": 69, "gsm": 2400},
+        {"L": 2420, "W": 1200, "thickness_mm": 12, "units_per_box": 8, "box_weight_kg": 61, "gsm": 2400},
+        {"L": 2780, "W": 1200, "thickness_mm": 25, "units_per_box": 4, "box_weight_kg": 55, "gsm": 3600},
+        {"L": 2420, "W": 1200, "thickness_mm": 25, "units_per_box": 4, "box_weight_kg": 49, "gsm": 3600}
+      ],
+      "available_series": {
+        "fabrics": ["Designer Textile", "Color core", "Luxury Textures", "Modern Corporate"],
+        "ligna": ["Classic Parquet", "Wood Classics", "Wood perforation"],
+        "bespoke_graphics": ["Line & Texture", "Rhythm & Repeat", "Woven Brushwork", "Patterned weaves", "Indian Modern", "Quiet Bloom", "Nature Reimagined", "Color block", "Fun & Fantasy", "Soft Texture", "Marble", "Leather"]
+      },
+      "recommended_spaces_additional": [
+        "Performing Arts Rehearsal Studios",
+        "Spiritual & Meditation Spaces",
+        "Airport Premium Lounges",
+        "Banquets / Hotel rooms",
+        "Receptions / Corridors",
+        "Experience Centres",
+        "Brand Galleries",
+        "Fine-Dining Interiors",
+        "Library Reading Halls & Knowledge Centres",
+        "Conferences / Open plan offices"
+      ],
+      "features": [
+        "Premium curated design library",
+        "High acoustic precision, lab-tested",
+        "Custom palettes (project-specific, MOQ-based)",
+        "Recyclable components, circular use",
+        "Easy-clean finish",
+        "Effortless maintenance",
+        "Durable"
+      ]
+    },
+    {
+      "product_id": "embossed_pet_wool",
+      "name": "Embossed VMT Series (PET Wool)",
+      "material": "Recycled PET Wool with controlled density and embossed surface relief",
+      "surface_type": "Embossed (3D relief + Wallpaper patterns)",
+      "description": "Manufactured from recycled PET wool, the Embossed VMT series uses controlled density and embossed surface relief to address mid-to-high frequency sound reflections. The linear and sculptural patterning introduces partial diffusion alongside absorption, producing a panel where acoustic function and surface expression are inseparable.",
+      "thicknesses_mm": [20],
+      "fire_rating": {
+        "en_13501_part_1": "C, s2, d0",
+        "astm_e84": true,
+        "bs_476_part_6_7": true,
+        "astm_d_2859": false,
+        "bs_5852_part_1": false,
+        "note": "Test certificates available on request."
+      },
+      "acoustic_performance": [
+        {
+          "thickness_mm": 20,
+          "nrc_direct_fix_range": [0.35, 0.40],
+          "max_with_backing_infill": 0.80,
+          "max_with_backing_note": "Can be increased up to 0.9 with backing/infill depending on product design and density.",
+          "pattern_sets": [
+            {"set": "Set A", "astm_nrc": 0.35, "iso_alpha_w": 0.94, "patterns": ["Aqualine", "Drift", "Flux Ribbed", "Ribbed 45 mm", "Ribbed 60 mm"]},
+            {"set": "Set B", "astm_nrc": 0.35, "iso_alpha_w": 0.91, "patterns": ["Tapered", "Ribbed Duo", "Bloom", "Elliptera", "Ribbed 25 mm", "Shard", "Ellipsia"]},
+            {"set": "Set C", "astm_nrc": 0.40, "iso_alpha_w": 0.96, "patterns": ["Deck", "Square 30", "Triangle"]},
+            {"set": "Wallpaper", "patterns": ["Weave", "Square 8", "Symmetric", "Axis"]}
+          ]
+        }
+      ],
+      "dimensions_mm": [
+        {"L": 2800, "W": 1200, "panel_type": "3D", "thickness_mm": 20, "units_per_box": 4, "box_weight_kg": 59, "gsm": 2000},
+        {"L": 2400, "W": 1200, "panel_type": "Wallpaper", "thickness_mm": 20, "units_per_box": 8, "box_weight_kg": 28, "gsm": 2000},
+        {"L": 1200, "W": 600, "panel_type": "Both", "thickness_mm": 20, "units_per_box": 8, "box_weight_kg": 8, "gsm": 2000},
+        {"L": 600, "W": 600, "panel_type": "Both", "thickness_mm": 20, "units_per_box": 4, "box_weight_kg": 4, "gsm": 2000}
+      ],
+      "available_series": {
+        "fabrics": ["Designer Textile", "Color Core"],
+        "ligna": ["Wood Classics", "Wood perforation"],
+        "bespoke_graphics": ["Marble", "Leather"],
+        "ombre": ["Color Core Ombre", "Signature Ombre Series"]
+      },
+      "features": [
+        "Premium curated design library",
+        "High acoustic precision, lab-tested",
+        "Custom palettes (project-specific, MOQ-based)",
+        "Recyclable components",
+        "Lightweight, easy handling",
+        "Simple installation, quick mounting",
+        "Low-maintenance, easy-clean surface",
+        "Optimized high and mid-frequency control",
+        "Supports circular economy"
+      ]
+    },
+    {
+      "product_id": "embossed_pet",
+      "name": "Embossed VMT Series (PET Panel)",
+      "material": "High-density recycled PET, precision-pressed into sculpted relief",
+      "surface_type": "Embossed (3D relief + Wallpaper patterns)",
+      "description": "The Embossed PET panel series is manufactured from high-density recycled PET, precision-pressed into sculpted relief patterns that deliver consistent mid-to-high frequency sound absorption. The textured surface adds architectural depth and visual definition, allowing the panel to serve simultaneously as a performance specification and an architectural finish.",
+      "thicknesses_mm": [12, 25],
+      "fire_rating": {
+        "en_13501_part_1": "B, s1, d0",
+        "astm_e84": true,
+        "bs_476_part_6_7": true,
+        "astm_d_2859": true,
+        "bs_5852_part_1": true,
+        "note": "Test certificates available on request. Class B fire rating is higher than PET Wool's Class C."
+      },
+      "acoustic_performance": [
+        {
+          "thickness_mm": 12,
+          "nrc_direct_fix_range": [0.25, 0.35],
+          "max_with_backing_infill": 0.80,
+          "pattern_sets": [
+            {"set": "Set A", "astm_nrc": 0.25, "iso_alpha_w": 0.96, "patterns": ["Aqualine", "Drift", "Flux Ribbed", "Ribbed 45 mm", "Ribbed 60 mm"]},
+            {"set": "Set B", "astm_nrc": 0.25, "iso_alpha_w": 0.90, "patterns": ["Tapered", "Ribbed Duo", "Bloom", "Elliptera", "Ribbed 25 mm", "Shard", "Ellipsia"]},
+            {"set": "Set C", "astm_nrc": 0.35, "iso_alpha_w": 1.01, "patterns": ["Deck", "Square 30", "Triangle"]},
+            {"set": "Wallpaper", "patterns": ["Weave", "Square 8", "Symmetric", "Axis"]}
+          ]
+        },
+        {
+          "thickness_mm": 25,
+          "nrc_direct_fix_range": [0.35, 0.50],
+          "max_with_backing_infill": 0.80,
+          "pattern_sets": [
+            {"set": "Set A", "astm_nrc": 0.50, "iso_alpha_w": 0.93, "patterns": ["Aqualine", "Drift", "Flux Ribbed", "Ribbed 45 mm", "Ribbed 60 mm"]},
+            {"set": "Set B", "astm_nrc": 0.40, "iso_alpha_w": 0.94, "patterns": ["Tapered", "Ribbed Duo", "Bloom", "Elliptera", "Ribbed 25 mm", "Shard", "Ellipsia"]},
+            {"set": "Set C", "astm_nrc": 0.35, "iso_alpha_w": 0.91, "patterns": ["Deck", "Square 30", "Triangle"]},
+            {"set": "Wallpaper", "patterns": ["Weave", "Square 8", "Symmetric", "Axis"]}
+          ]
+        }
+      ],
+      "dimensions_mm": [
+        {"L": 2800, "W": 1200, "panel_type": "3D", "thickness_mm": 12, "units_per_box": 4, "box_weight_kg": 59, "gsm": 2400},
+        {"L": 2400, "W": 1200, "panel_type": "Wallpaper", "thickness_mm": 12, "units_per_box": 8, "box_weight_kg": 28, "gsm": 2400},
+        {"L": 1200, "W": 600, "panel_type": "Both", "thickness_mm": 12, "units_per_box": 8, "box_weight_kg": 8, "gsm": 2400},
+        {"L": 600, "W": 600, "panel_type": "Both", "thickness_mm": 12, "units_per_box": 4, "box_weight_kg": 4, "gsm": 2400},
+        {"L": 2800, "W": 1200, "panel_type": "3D", "thickness_mm": 25, "units_per_box": 4, "box_weight_kg": 59, "gsm": 3600},
+        {"L": 2400, "W": 1200, "panel_type": "Wallpaper", "thickness_mm": 25, "units_per_box": 8, "box_weight_kg": 28, "gsm": 3600},
+        {"L": 1200, "W": 600, "panel_type": "Both", "thickness_mm": 25, "units_per_box": 8, "box_weight_kg": 8, "gsm": 3600},
+        {"L": 600, "W": 600, "panel_type": "Both", "thickness_mm": 25, "units_per_box": 4, "box_weight_kg": 4, "gsm": 3600}
+      ],
+      "available_series": {
+        "fabrics": ["Designer Textile", "Color Core"],
+        "ligna": ["Wood Classics", "Wood perforation"],
+        "bespoke_graphics": ["Marble", "Leather"],
+        "ombre": ["Colour Core Ombre", "Signature Ombre Series"]
+      },
+      "features": [
+        "Premium curated design library",
+        "High acoustic precision, lab-tested",
+        "Custom palettes (project-specific, MOQ-based)",
+        "Recyclable components",
+        "Lightweight, easy handling",
+        "High material integrity & durability",
+        "Simple installation, quick mounting",
+        "Low-maintenance, easy-clean surface",
+        "Optimized high and mid-frequency control",
+        "Supports circular economy"
+      ]
+    }
+  ],
+  "comparison_rules": {
+    "pet_vs_pet_wool": "PET Wool is lower density and more porous, so it generally absorbs more sound at a given thickness. High-density PET has a higher fire rating (EN-13501 Class B vs C) and additional fire test certifications (ASTM D 2859, BS 5852 Part 1), making it preferred where stricter fire safety is required.",
+    "flat_vs_embossed": "Flat panels absorb more sound at comparable thickness because their full surface area is exposed to incoming sound. Embossed panels trade some absorption for partial diffusion and architectural surface relief — they are selected when visual depth and sculptural character matter alongside acoustic function.",
+    "thickness_effect": "Thicker panels absorb lower frequencies and deliver higher overall NRC. Example: PET Wool flat goes from NRC 0.70 at 20 mm to NRC 0.90 at 40 mm.",
+    "backing_effect": "Adding an air gap or infill behind the panel effectively increases the absorbing layer and can lift NRC up to 0.80–0.90, especially in the low-to-mid frequency range.",
+    "highest_nrc_product": "Flat Panel VMT (PET Wool) 40 mm at NRC 0.90 (direct fix).",
+    "best_for_print": "Flat Panel VMT (PET) — high-density surface supports refined high-resolution printing. Flat Panel VMT (PET Wool) also supports high-resolution printing.",
+    "best_for_sculptural_design": "Embossed VMT series (either PET or PET Wool) — sculpted relief adds architectural depth."
+  },
+  "acoustics_general_knowledge": {
+    "nrc_definition": "Noise Reduction Coefficient (NRC) is the average sound absorption coefficient at 250, 500, 1000, and 2000 Hz. Values range from 0 (perfect reflector) to 1 (perfect absorber). A panel with NRC 0.70 absorbs about 70% of incident sound across those frequencies.",
+    "alpha_w_definition": "αw (weighted sound absorption coefficient, per ISO 11654) is a single-number rating derived from the 1/3-octave absorption curve by fitting it against a reference curve. It ranges from 0 to 1 (values above 1 in lab measurements reflect edge-diffraction effects in the test chamber and are typically reported as 1.00 in specifications).",
+    "nrc_vs_alpha_w": "NRC is the ASTM/North American standard; αw is the ISO/European equivalent. UniVicoustic reports both on its data sheets because specifications cited in projects use either system.",
+    "absorption_vs_soundproofing": "Absorption reduces reverberation and echo *inside* a room by converting sound energy into heat within porous material. Soundproofing (sound isolation) prevents sound from *passing through* a wall into another space and requires mass, decoupling, damping, and airtight sealing. Acoustic panels like these are absorbers, not soundproofing.",
+    "frequency_coverage": "PET and PET Wool fibre panels are primarily effective at mid-to-high frequencies (roughly 500 Hz and above). Low-frequency absorption improves with greater panel thickness and rear air gap.",
+    "air_gap_rule_of_thumb": "A rear air gap roughly equal to one-quarter wavelength of the target frequency improves absorption at that frequency. Practical gaps of 25–50 mm noticeably improve mid-frequency absorption.",
+    "room_coverage_rule_of_thumb": "For general reverberation control in speech spaces, treating 15–30% of total room surface area (walls + ceiling) with an NRC 0.7+ product is a common starting point. Music, home theatre, and broadcast spaces usually need more. A proper calculation uses Sabine's formula based on room volume and target reverberation time."
+  }
+}

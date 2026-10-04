@@ -1,0 +1,112 @@
+/* SignatureOmbre.module.css */
+
+.layout { display: flex; height: 100%; overflow: hidden; }
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 340px; min-width: 340px; background: #fff;
+  border-right: 1px solid #e2ddd7; overflow-y: auto;
+}
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-thumb { background: #e2ddd7; border-radius: 4px; }
+
+.section { padding: 16px 20px; border-bottom: 1px solid #e2ddd7; }
+.sectionTitle {
+  font-size: 9px; text-transform: uppercase; letter-spacing: 0.14em;
+  color: #8a8480; margin-bottom: 12px; font-weight: 600;
+}
+.productName { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+.productMeta { font-size: 11px; color: #8a8480; }
+
+/* ── Colors ── */
+.colorDuo { display: flex; gap: 12px; margin-bottom: 14px; }
+.colorBox { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+.colorLabel { font-size: 11px; color: #8a8480; font-weight: 500; }
+.colorSwatch {
+  height: 52px; border-radius: 10px; border: 2px solid #e2ddd7;
+  cursor: pointer; transition: border-color 0.15s; overflow: hidden; position: relative;
+}
+.colorSwatch:hover { border-color: #c4956a; }
+.colorInput {
+  opacity: 0; position: absolute; inset: 0; width: 100%; height: 100%; cursor: pointer;
+}
+.colorHex {
+  font-size: 9px; font-family: monospace; color: #8a8480;
+  text-align: center; text-transform: uppercase;
+}
+.ombreBar {
+  height: 28px; border-radius: 8px; border: 1px solid #e2ddd7; margin-bottom: 12px;
+}
+.sliderRow {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;
+  font-size: 11px; color: #8a8480;
+}
+.sliderValue {
+  font-size: 10px; color: #c4956a; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.slider {
+  -webkit-appearance: none; width: 100%; height: 3px; border-radius: 2px;
+  background: #e2ddd7; outline: none; margin-top: 4px;
+}
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+  background: #c4956a; cursor: pointer; border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+}
+
+/* ── Patterns ── */
+.patternGrid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+.patternCard {
+  background: #f5f2ee; border: 2px solid #e2ddd7; border-radius: 10px;
+  padding: 10px 6px; cursor: pointer; transition: all 0.15s;
+  text-align: center; position: relative; font-family: 'DM Sans', sans-serif;
+  color: #8a8480;
+}
+.patternCard:hover { border-color: #c4956a; background: rgba(196,149,106,0.06); }
+.patternCardSel {
+  border-color: #c4956a; background: rgba(196,149,106,0.06);
+  box-shadow: 0 0 0 1px #c4956a;
+}
+.patternCheck {
+  position: absolute; top: 5px; right: 5px; width: 14px; height: 14px;
+  background: #c4956a; border-radius: 50%; display: flex;
+  align-items: center; justify-content: center;
+}
+.patternIcon {
+  height: 36px; display: flex; align-items: center; justify-content: center; margin-bottom: 4px;
+}
+.patternName {
+  font-size: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+  color: #8a8480;
+}
+.patternCardSel .patternName { color: #c4956a; }
+
+/* ── Viewport ── */
+.viewport {
+  flex: 1; position: relative; background: #e8e4df; overflow: hidden;
+}
+.downloadBtn {
+  position: absolute; top: 12px; right: 12px; z-index: 10;
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 8px 16px; border: 1px solid #c4956a; border-radius: 8px;
+  background: #c4956a; color: #fff; font-family: 'DM Sans', sans-serif;
+  font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s;
+}
+.downloadBtn:hover { background: #d4a57a; }
+.downloadBtn:disabled { opacity: 0.3; pointer-events: none; }
+.downloadBtn svg { width: 14px; height: 14px; }
+
+/* ── Loading ── */
+.loadingOverlay {
+  position: absolute; inset: 0;
+  background: rgba(245,242,238,0.85); backdrop-filter: blur(4px);
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; z-index: 20;
+}
+.spinner {
+  width: 28px; height: 28px; border: 2px solid #e2ddd7;
+  border-top-color: #c4956a; border-radius: 50%;
+  animation: soSpin 0.7s linear infinite;
+}
+@keyframes soSpin { to { transform: rotate(360deg); } }
+.loadingText { color: #8a8480; font-size: 10px; margin-top: 8px; }
