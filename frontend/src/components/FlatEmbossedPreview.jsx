@@ -60,6 +60,12 @@ const POST_REVEAL_HOLD_MS = 1000;
  *  inside the window, Phase 1 re-fires and the timer is cancelled, so we
  *  end up with a single, slightly longer transition instead of two. */
 const COMMIT_GRACE_MS = 300;
+/** Longest the reveal will wait for an incoming texture's display copy (see
+ *  `displayPending`). On a normal machine the copy is ready long before the
+ *  loader would drop, so this never bites; it only exists so a slow device or
+ *  a failed build can't leave the loader up — past it, the full-res image is
+ *  revealed and the copy slots in over it when ready. */
+const DISPLAY_COPY_MAX_WAIT_MS = 1500;
 
 /**
  * Kicks off background loading for an array of image URLs so they are
@@ -105,10 +111,50 @@ const FlatEmbossedPreview = forwardRef(
       panelRows = null,
       /** solid CSS color to fill panel columns when no texture is loaded (e.g. ombre base color) */
       panelFallbackColor = null,
+      /**
+       * Display-resolution copies (see lib/displayCopy.js). Painted as an
+       * overlay ON TOP of the full-resolution `textureUrl` / `embossUrl`
+       * images, which stay in place underneath for zoom, the magnifier and
+       * downloads. Optional — null means no overlay, i.e. exactly the old
+       * behaviour. These never take part in transition / loader decisions:
+       * only `textureUrl` and `embossUrl` do.
+       */
+      textureDisplayUrl = null,
+      embossDisplayUrl = null,
+      /** true while the incoming texture's display copy is still being built;
+       *  the reveal waits for it (up to DISPLAY_COPY_MAX_WAIT_MS) */
+      displayPending = false,
+      /** called with the width of one panel column in device pixels, at 1× zoom */
+      onPanelColumnPx = null,
     },
     ref
   ) => {
     const wallCanvasRef = useRef(null);
+
+    // ── Full-res → display-copy lookup ─────────────────────────────────────
+    // Keyed by the full-resolution URL rather than read straight off the
+    // props, because during a transition the FROZEN columns still show the
+    // previous texture. Keeping its copy here means a frozen overlay's `src`
+    // never changes mid-transition, so it never reloads a revoked blob URL.
+    // Pruned below to the textures actually on screen or incoming.
+    const displaySrcRef = useRef(new Map());
+    const rememberDisplaySrc = (fullUrl, copyUrl) => {
+      if (!fullUrl) return;
+      if (copyUrl) displaySrcRef.current.set(fullUrl, copyUrl);
+      // Same image, copy now null → no copy is needed at this width (or
+      // building one failed). Drop it so the full-res shows instead of a
+      // stale copy built for a different width.
+      else displaySrcRef.current.delete(fullUrl);
+    };
+    // Only paired with the URL it was built for: the hook clears the copy in
+    // the same batch as an image swap, so a new textureUrl never arrives
+    // carrying the previous image's copy.
+    if (textureUrl && !textureUrls?.length) rememberDisplaySrc(textureUrl, textureDisplayUrl);
+    // Designer Textile / Color Core pass the SAME image as both texture and
+    // emboss when an emboss is chosen — the texture entry above already covers
+    // it, so only a genuinely separate emboss image (Ombre) records its own.
+    if (embossUrl && embossUrl !== textureUrl) rememberDisplaySrc(embossUrl, embossDisplayUrl);
+    const displaySrcFor = (fullUrl) => (fullUrl ? displaySrcRef.current.get(fullUrl) ?? null : null);
 
     // ── Stable key for the incoming textureUrls array (avoids array-as-dep issues) ──
     // textureUrls can be null (single designs) or string[] (continuous designs).
@@ -146,6 +192,20 @@ const FlatEmbossedPreview = forwardRef(
     // Cover-all only while the category is actually mid-swap; once the new
     // displayed cfg has been committed, the loader drops to z=5 (wall-only).
     const loadingCoversAll = hasPendingChange && categoryId !== displayedCategoryId;
+
+    // Keep the display-copy lookup to what's on screen or incoming, so it
+    // can't grow across a session of fabric changes.
+    {
+      const live = new Set([
+        ...(displayedTextureUrls || []),
+        ...(targetTextureUrls || []),
+        displayedEmbossUrl,
+        embossUrl,
+      ]);
+      for (const k of displaySrcRef.current.keys()) {
+        if (!live.has(k)) displaySrcRef.current.delete(k);
+      }
+    }
 
     // ── Render logging (remove when done profiling) ────────────────────────
     useRenderLog("FlatEmbossedPreview", { categoryId, textureUrl, textureUrls, showTpatti, embossUrl, displayedCategoryId, displayedTextureUrls, displayedEmbossUrl, hasPendingChange });
@@ -299,6 +359,14 @@ const FlatEmbossedPreview = forwardRef(
       if (!pending) return;
       if (!nonBlobReady) return;
 
+      // Hold the reveal for an incoming display copy, so the first frame
+      // after a fabric change is the clean copy rather than the raw 27 MP
+      // image (the one that can alias into bands — lib/displayCopy.js).
+      // While it's pending, the timer below is only a fallback at the cap;
+      // when it lands, displayPending flips, this re-runs and the normal
+      // grace period applies. Normally the copy is ready before Phase 1 is,
+      // so this changes nothing.
+      const delay = displayPending ? DISPLAY_COPY_MAX_WAIT_MS : COMMIT_GRACE_MS;
       const commitTimer = setTimeout(() => {
         // Atomic commit. React batches these so the DOM only paints once
         // with the new state.
@@ -307,9 +375,9 @@ const FlatEmbossedPreview = forwardRef(
         setDisplayedShowTpatti(pending.targetShowTpatti);
         setDisplayedEmbossUrl(pending.targetEmbossUrl);
         pendingTargetRef.current = null;
-      }, COMMIT_GRACE_MS);
+      }, delay);
       return () => clearTimeout(commitTimer);
-    }, [nonBlobReady]);
+    }, [nonBlobReady, displayPending]);
 
     // ── Download: capture the wall-canvas DOM node to a PNG ──────────────
     // Strategy: just before serializing, swap every cross-origin <img> src
@@ -377,7 +445,11 @@ const FlatEmbossedPreview = forwardRef(
           // their bitmaps would be pure wasted latency.
           const imgs = Array.from(node.querySelectorAll("img")).filter(
             (img) =>
-              (!furnitureEl || !furnitureEl.contains(img)) && !extraRows.has(img),
+              (!furnitureEl || !furnitureEl.contains(img)) &&
+              !extraRows.has(img) &&
+              // Display copies are left out of the capture (see the filter
+              // below), so there's nothing to prefetch for them.
+              !img.closest("[data-display-copy]"),
           );
           await Promise.all(
             imgs.map(async (img) => {
@@ -437,20 +509,27 @@ const FlatEmbossedPreview = forwardRef(
           //    yields a 4800x3200 PNG, suitable for large prints).  Stay
           //    below 5 to avoid hitting Safari's ~8192² canvas ceiling and
           //    to keep memory in check on lower-end mobile devices.
+          // Display copies never go in the export. They exist to stop the
+          // browser aliasing a 10× shrink on screen, but the export renders
+          // at 4×, where the full-res image underneath is the right source —
+          // the copy would just be upscaled and soften the download.
+          const isDisplayCopy = (n) =>
+            n.nodeType === 1 && n.hasAttribute("data-display-copy");
           let dataUrl = await toPng(node, {
             pixelRatio: 4,
             skipFonts: true,
-            // Wall-only: drop the furniture from the clone (never from the
-            // live DOM — see note above).  `filter` is not invoked for the
-            // root node, so the wall-canvas itself is always kept; excluding a
-            // node also excludes its children, so `contains` covers the <img>
-            // inside the <picture>.
-            ...(furnitureEl || extraRows.size
-              ? {
-                  filter: (n) =>
-                    !(furnitureEl && furnitureEl.contains(n)) && !extraRows.has(n),
-                }
-              : {}),
+            // Everything here is dropped from html-to-image's INTERNAL clone,
+            // never from the live DOM (see note above). `filter` is not
+            // invoked for the root node, so the wall-canvas itself is always
+            // kept; excluding a node also excludes its children, so
+            // `contains` covers the <img> inside the <picture>.
+            //   - display-copy overlays: always
+            //   - furniture: wall-only exports
+            //   - stacked rows 1..n: wall-only exports
+            filter: (n) =>
+              !isDisplayCopy(n) &&
+              !(furnitureEl && furnitureEl.contains(n)) &&
+              !extraRows.has(n),
           });
 
           // 2b) Wall-only: trim the stacked rows down to one.
@@ -576,6 +655,64 @@ const FlatEmbossedPreview = forwardRef(
       return () => clearTimeout(t);
     }, [tpattiImgLoaded, cfg.tpatti]);
 
+    // ── Report one panel column's width, for sizing the display copies ────
+    // `offsetWidth` is the layout width, which ignores the zoom wrapper's CSS
+    // transform — i.e. the width at 1× zoom. Configurator applies the zoom
+    // level itself when deciding whether the copy is still sharp enough.
+    const columnCountForReport =
+      displayedTextureUrls?.length > 1 ? displayedTextureUrls.length : cfg.repeat;
+    const lastReportedPxRef = useRef(null);
+    useEffect(() => {
+      const el = wallCanvasRef.current;
+      if (!el || !onPanelColumnPx || !columnCountForReport) return;
+      const report = () => {
+        const w = el.offsetWidth;
+        if (!w) return; // room photo not laid out yet — see the dependency note below
+        const px = Math.round((w / columnCountForReport) * (window.devicePixelRatio || 1));
+        if (px !== lastReportedPxRef.current) {
+          lastReportedPxRef.current = px;
+          onPanelColumnPx(px);
+        }
+      };
+      report();
+
+      // Layout size changes (window resize, browser zoom).
+      const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(report) : null;
+      ro?.observe(el);
+
+      // Pixel-ratio changes that DON'T resize the layout — e.g. dragging the
+      // window from a 2× laptop screen to a 1× external monitor. The observer
+      // can't see those, and a copy built for the old ratio would then be
+      // shrunk up to 3:1 on screen, which is enough to bring the banding back.
+      // A resolution media query fires exactly when the ratio changes; it's
+      // re-armed each time because it only matches the ratio it was made for.
+      let dprQuery = null;
+      function onDprChange() {
+        report();
+        watchDpr();
+      }
+      function watchDpr() {
+        dprQuery?.removeEventListener?.("change", onDprChange);
+        dprQuery = window.matchMedia?.(`(resolution: ${window.devicePixelRatio || 1}dppx)`) ?? null;
+        dprQuery?.addEventListener?.("change", onDprChange);
+      }
+      watchDpr();
+
+      return () => {
+        ro?.disconnect();
+        dprQuery?.removeEventListener?.("change", onDprChange);
+      };
+      // furnitureImgLoaded is a dependency on purpose. The wall shrink-wraps
+      // the room photo, so it is 0 px wide until that photo loads — and the
+      // ResizeObserver can't be relied on to report the growth: browsers
+      // don't deliver its callbacks to a hidden page (e.g. a configurator
+      // opened in a background tab), so the first measurement would never
+      // arrive and no display copy would be built. The image's load event
+      // does fire in hidden pages, and offsetWidth forces a fresh layout, so
+      // re-running here measures the real width either way. The observer
+      // still handles later window resizes.
+    }, [onPanelColumnPx, columnCountForReport, furnitureImgLoaded]);
+
     return (
       <div
         className="w-full h-full flex items-center justify-center"
@@ -679,6 +816,49 @@ const FlatEmbossedPreview = forwardRef(
                                 // The wall-only export keeps row 0 and drops the rest
                                 // from html-to-image's clone — see downloadImage.
                                 data-row-index={rowIndex}
+                                style={{
+                                  width: "100%",
+                                  height: "auto",
+                                  display: "block",
+                                  flexShrink: 0,
+                                  pointerEvents: "none",
+                                  userSelect: "none",
+                                  transform: isCenter && flipCenter ? "scaleX(-1)" : undefined,
+                                  transformOrigin: "center",
+                                }}
+                              />
+                            ))}
+                          </div>
+                        )}
+                        {/* Display copy — the same texture, properly downsampled,
+                            painted over the full-res stack above. This is what
+                            the user actually sees at normal zoom; see
+                            lib/displayCopy.js for why. Deliberately carries no
+                            data-row-index: the download leaves the whole overlay
+                            out and captures the full-res stack, the magnifier
+                            strips it from its clone, and Configurator hides it
+                            (via data-panel-lod) once zoom would upscale it. */}
+                        {colUrl && displaySrcFor(colUrl) && (
+                          <div
+                            data-display-copy=""
+                            aria-hidden="true"
+                            style={{
+                              position: "absolute",
+                              inset: 0,
+                              display: "flex",
+                              flexDirection: "column",
+                              pointerEvents: "none",
+                            }}
+                          >
+                            {Array.from({ length: panelRowCount }).map((__, rowIndex) => (
+                              <img
+                                // Not keyed on the URL: when the copy is rebuilt
+                                // at a new width the same element just swaps
+                                // `src`, which the browser does atomically.
+                                key={`copy-${rowIndex}-${isCenter && flipCenter ? "flipped" : "normal"}`}
+                                src={displaySrcFor(colUrl)}
+                                alt=""
+                                draggable={false}
                                 style={{
                                   width: "100%",
                                   height: "auto",
@@ -815,6 +995,43 @@ const FlatEmbossedPreview = forwardRef(
                           }}
                         />
                       ))}
+                      {/* Display copy of the emboss image — same overlay
+                          treatment as the panel layer (see the comment there).
+                          For Designer Textile / Color Core with an emboss this
+                          IS the visible panel, since the emboss composite is
+                          the full panel with the emboss baked in. */}
+                      {displaySrcFor(displayedEmbossUrl) && (
+                        <div
+                          data-display-copy=""
+                          aria-hidden="true"
+                          style={{
+                            position: "absolute",
+                            inset: 0,
+                            display: "flex",
+                            flexDirection: "column",
+                            pointerEvents: "none",
+                          }}
+                        >
+                          {Array.from({ length: panelRowCount }).map((_, rowIndex) => (
+                            <img
+                              key={`emboss-copy-${i}-${rowIndex}`}
+                              src={displaySrcFor(displayedEmbossUrl)}
+                              alt=""
+                              draggable={false}
+                              style={{
+                                width: "100%",
+                                height: "auto",
+                                display: "block",
+                                flexShrink: 0,
+                                pointerEvents: "none",
+                                userSelect: "none",
+                                transform: isCenter && flipCenter ? "scaleX(-1)" : undefined,
+                                transformOrigin: "center",
+                              }}
+                            />
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

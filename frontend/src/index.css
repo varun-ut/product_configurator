@@ -174,3 +174,16 @@ button.hover\:bg-accent-hover:hover {
         right: 96px !important;
     }
 }
+
+/* ── Panel display copies: hide once zoom would upscale them ──────────────
+   FlatEmbossedPreview paints a properly-downsampled copy of fine-textured
+   panels (Designer Textile, Color Core, Ombre) over the full-res image, to
+   stop the browser aliasing a ~10× shrink into moiré bands at normal zoom
+   (see src/lib/displayCopy.js). The copy is built for ~1.5× the column's
+   1×-zoom width, so past that zoom it would be upscaled and look soft.
+   Configurator sets data-panel-lod="full" on the zoom wrapper at that point;
+   hiding the copies here lets the full-res image underneath show, which at
+   that zoom is shrunk little enough to render cleanly. */
+[data-panel-lod="full"] [data-display-copy] {
+    display: none !important;
+}

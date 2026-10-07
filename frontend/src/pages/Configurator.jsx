@@ -24,6 +24,7 @@ import FlatEmbossedPreview, { preloadImages } from "@/components/FlatEmbossedPre
 import VicStripPreview from "@/components/VicStripPreview";
 import { VICSTRIP_PRODUCT, VICSTRIP_COLOR_TO_CODE, getImagePath, getFlatEmbossedPanelPath, FLAT_EMBOSSED_VMT_CONFIG, resolveAssetUrl, FLAT_EMBOSSED_EMBOSS_PATTERNS, LEATHER_EMBOSS_BY_SIZE, WOOD_PERFORATION_SIZES, WOOD_PERFORATION_PATTERNS, WOOD_PERFORATION_EXCLUSIONS, COLOR_CORE_COLORS, COLOR_CORE_FABRIC_STRUCTURES, getColorCorePanelUrl, getColorCoreThumbnailUrl, COLOR_CORE_EMBOSS_PATTERNS, COLOR_CORE_SIZES, getColorCoreEmbossUrl, OMBRE_COLOR_CORE_BASE_COLORS, OMBRE_COLOR_CORE_OVERLAYS, getOmbreColorCorePanelUrl, OMBRE_COLOR_CORE_EMBOSS_PATTERNS, getOmbreEmbossPanelUrl, OMBRE_COLOR_CORE_GROOVE_PATTERNS, getOmbreGroovePanelUrl, DESIGNER_TEXTILE_COLOR_GROUPS, DESIGNER_TEXTILE_FABRICS, DESIGNER_TEXTILE_SIZES, DESIGNER_TEXTILE_THICKNESSES, getDesignerTextileThumbnailUrl, getDesignerTextilePanelUrl, DESIGNER_TEXTILE_EMBOSS_PATTERNS, getDesignerTextileEmbossUrl, getVicstripThumbnailUrl, isEmbossAvailableForThickness } from "@/data/skus";
 import { useBlobPanel, useMultiBlobPanels } from "@/hooks/use-blob-panel";
+import { displayWidthFor } from "@/lib/displayCopy";
 import { downloadPanelImages } from "@/lib/downloadPanelImages";
 import { saveImageFile } from "@/lib/downloadImageFile";
 import SignatureOmbreRoomPreview from "@/components/SignatureOmbreRoomPreview";
@@ -1080,6 +1081,16 @@ const Configurator = () => {
     selectedEmbossPattern, soOverlayColor, soSelectedPattern,
   ]);
 
+  // ── Display copies for fine-textured panels ──────────────────────────────
+  // Designer Textile, Color Core and Ombre panels are 27 MP images shown in
+  // ~300px columns. Shrinking that ~10× at paint time sometimes aliases a fine
+  // weave into moiré bands, so these hooks also build a properly-downsampled
+  // copy sized to the column (see lib/displayCopy.js). FlatEmbossedPreview
+  // reports the column width; the copy is DISPLAY_COPY_SCALE× that.
+  const [panelColPx, setPanelColPx] = useState(null);
+  const panelDisplayWidth = displayWidthFor(panelColPx);
+  const displayCopyOpts = { displayWidth: panelDisplayWidth };
+
   // Designer Textile — Blob URL panel manager (exactly 1 full-res image in memory)
   // When an emboss pattern is selected, the pre-rendered emboss composite replaces the base panel.
   const isDTActive = selectedCategory?.id === "fabrics-designer-textile";
@@ -1090,14 +1101,14 @@ const Configurator = () => {
             ? `${ASSETS_URL}/static/images/fabric/designer_textile/panels/${selectedDTFabric.id}_${selectedDTShade.id}.jpg`
             : null))
     : null;
-  const { blobUrl: dtPanelBlobUrl, isLoading: dtPanelLoading } = useBlobPanel(dtPanelUrl);
+  const { blobUrl: dtPanelBlobUrl, displayUrl: dtPanelDisplayUrl, displayPending: dtPanelDisplayPending, isLoading: dtPanelLoading } = useBlobPanel(dtPanelUrl, displayCopyOpts);
 
   // Ombre — Blob URL panel manager (exactly 1 full-res image in memory)
   const isOmbreActive = selectedProductType?.id === "ombre";
   const ombrePanelUrl = isOmbreActive && selectedOmbreBaseColor && selectedOmbreOverlay
     ? getOmbreColorCorePanelUrl(selectedOmbreBaseColor.id, selectedOmbreOverlay.filename)
     : null;
-  const { blobUrl: ombrePanelBlobUrl, isLoading: ombrePanelLoading } = useBlobPanel(ombrePanelUrl);
+  const { blobUrl: ombrePanelBlobUrl, displayUrl: ombrePanelDisplayUrl, displayPending: ombrePanelDisplayPending, isLoading: ombrePanelLoading } = useBlobPanel(ombrePanelUrl, displayCopyOpts);
 
   // Color Core — Blob URL panel manager (exactly 1 full-res image in memory)
   const isCCActive = selectedCategory?.id === "fabrics-color-core";
@@ -1113,7 +1124,7 @@ const Configurator = () => {
             selectedColorCoreColor.id
           ))
     : null;
-  const { blobUrl: ccPanelBlobUrl, isLoading: ccPanelLoading } = useBlobPanel(ccPanelUrl);
+  const { blobUrl: ccPanelBlobUrl, displayUrl: ccPanelDisplayUrl, displayPending: ccPanelDisplayPending, isLoading: ccPanelLoading } = useBlobPanel(ccPanelUrl, displayCopyOpts);
 
   // FVP single panel — flat-embossed, wood, non-CC/DT fabrics (non-continuous design)
   const fvpSingleUrl = (
@@ -1166,7 +1177,9 @@ const Configurator = () => {
           ? getOmbreGroovePanelUrl(selectedOmbreGroovePattern, selectedOmbreOverlay.filename)
           : null
     : null;
-  const { blobUrl: ombreEmbossBlobUrl } = useBlobPanel(ombreEmbossUrl);
+  // Opted into display copies too: Ombre's emboss / groove overlays are fine,
+  // regular lines — exactly the kind of detail a cheap shrink aliases.
+  const { blobUrl: ombreEmbossBlobUrl, displayUrl: ombreEmbossDisplayUrl, displayPending: ombreEmbossDisplayPending } = useBlobPanel(ombreEmbossUrl, displayCopyOpts);
 
   // VicStrip panel texture
   const vicstripUrl = (selectedProductType?.id === "vicstrip" && selectedPattern?.id && selectedDesign?.color?.id)
@@ -1857,6 +1870,11 @@ const Configurator = () => {
         dest.getContext('2d')?.drawImage(orig, 0, 0);
       } catch (_) {}
     });
+    // Drop the display-copy overlays (see lib/displayCopy.js). They're sized
+    // for the wall at 1× zoom; at the loupe's 7× they'd be blurry. Without
+    // them the clone shows the full-resolution image underneath — exactly
+    // what the magnifier showed before the overlays existed.
+    clone.querySelectorAll('[data-display-copy]').forEach((el) => el.remove());
     clone.style.cssText = [
       'position:absolute',
       'top:0',
@@ -5837,6 +5855,15 @@ const Configurator = () => {
             height: '100%',
           }}
           data-testid="preview-zoom-wrapper"
+          // "full" once zoom would UPSCALE the display copy (it's built for
+          // ~1.5× the 1×-zoom column width). index.css then hides the copies,
+          // and the full-resolution panels underneath show instead — at that
+          // zoom they're shrunk little enough to render cleanly.
+          data-panel-lod={
+            panelColPx && panelDisplayWidth && zoomLevel * panelColPx > panelDisplayWidth
+              ? "full"
+              : "display"
+          }
         >
         {!selectedProductType ? (
           /* No series picked → surface-only URL (e.g. /flat).  Show the
@@ -5951,6 +5978,43 @@ const Configurator = () => {
                         ? fvpSingleBlobUrl
                         : null
             }
+            // Display copies — branch-for-branch mirrors of textureUrl /
+            // embossUrl above, for the products that build them. Anything
+            // else gets null, which means no overlay (unchanged behaviour).
+            textureDisplayUrl={
+              !isConfigComplete
+                ? null
+                : selectedProductType?.id === "ombre"
+                  ? ombrePanelDisplayUrl
+                  : selectedCategory?.id === "fabrics-color-core"
+                    ? ccPanelDisplayUrl
+                    : selectedCategory?.id === "fabrics-designer-textile"
+                      ? dtPanelDisplayUrl
+                      : null
+            }
+            embossDisplayUrl={
+              !isConfigComplete
+                ? null
+                : selectedProductType?.id === "ombre"
+                  ? ombreEmbossDisplayUrl
+                  : selectedCategory?.id === "fabrics-color-core"
+                    ? (selectedColorCoreEmboss ? ccPanelDisplayUrl : null)
+                    : selectedCategory?.id === "fabrics-designer-textile"
+                      ? (selectedDTEmboss ? dtPanelDisplayUrl : null)
+                      : null
+            }
+            displayPending={
+              !isConfigComplete
+                ? false
+                : selectedProductType?.id === "ombre"
+                  ? (ombrePanelDisplayPending || ombreEmbossDisplayPending)
+                  : selectedCategory?.id === "fabrics-color-core"
+                    ? ccPanelDisplayPending
+                    : selectedCategory?.id === "fabrics-designer-textile"
+                      ? dtPanelDisplayPending
+                      : false
+            }
+            onPanelColumnPx={setPanelColPx}
           />
         ) : selectedProductType?.id === "vicstrip" ? (
           <VicStripPreview
