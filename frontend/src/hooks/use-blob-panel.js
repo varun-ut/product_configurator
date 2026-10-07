@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { makeDisplayCopy } from "@/lib/displayCopy";
 
-/** How long a window resize must settle before the display copy is rebuilt. */
+/** How long a zoom or window-size change must settle before the display copy
+ *  is rebuilt — so clicking zoom several times, or dragging the zoom slider,
+ *  builds one copy at the end rather than one per step. */
 const DISPLAY_REGEN_DEBOUNCE_MS = 200;
 
 /* ─── Decode primitive ─────────────────────────────────────────────────────
@@ -61,7 +63,7 @@ const DISPLAY_REGEN_DEBOUNCE_MS = 200;
  *   - `displayUrl` is null until it's ready, after a fabric change, and
  *     whenever no copy is needed or building one failed. Null always means
  *     "use the original" — never a broken image.
- *   - Changing `displayWidth` (a window resize) rebuilds the copy from the
+ *   - Changing `displayWidth` (zoom, or a window resize) rebuilds the copy from the
  *     already-fetched blob — no refetch, and `blobUrl` doesn't change.
  * Without the option the hook behaves exactly as it always has.
  *
@@ -237,9 +239,9 @@ export function useBlobPanel(url, { displayWidth = null } = {}) {
   }, [url]);
 
   // ── Effect 2: rebuild the display copy when the target width changes ───
-  // Debounced so dragging a window edge across several width buckets builds
-  // one copy at the end, not one per bucket. Rebuilds from the blob already
-  // in memory — no refetch.
+  // Debounced so a run of zoom clicks, a slider drag or a window-edge drag
+  // across several width buckets builds one copy at the end, not one per
+  // bucket. Rebuilds from the blob already in memory — no refetch.
   useEffect(() => {
     if (!displayWidth) return;
     if (displayWidth === copyWidthRef.current) return;

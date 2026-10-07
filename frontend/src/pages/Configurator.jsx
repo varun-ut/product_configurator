@@ -1085,10 +1085,17 @@ const Configurator = () => {
   // Designer Textile, Color Core and Ombre panels are 27 MP images shown in
   // ~300px columns. Shrinking that ~10× at paint time sometimes aliases a fine
   // weave into moiré bands, so these hooks also build a properly-downsampled
-  // copy sized to the column (see lib/displayCopy.js). FlatEmbossedPreview
-  // reports the column width; the copy is DISPLAY_COPY_SCALE× that.
+  // copy that the wall paints instead (see lib/displayCopy.js).
+  // FlatEmbossedPreview reports the column width at 1× zoom; the copy is built
+  // at exactly that width × the CURRENT zoom, so the browser paints it 1:1 at
+  // every zoom level. Once the original is barely larger than that (around
+  // 7× zoom), makeDisplayCopy returns none and the original is shown.
+  // zoomLevel lives here (not with the other zoom/pan state below) because
+  // the hooks underneath need it — reading it before its declaration would
+  // throw.
+  const [zoomLevel, setZoomLevel] = useState(1);
   const [panelColPx, setPanelColPx] = useState(null);
-  const panelDisplayWidth = displayWidthFor(panelColPx);
+  const panelDisplayWidth = displayWidthFor(panelColPx ? panelColPx * zoomLevel : null);
   const displayCopyOpts = { displayWidth: panelDisplayWidth };
 
   // Designer Textile — Blob URL panel manager (exactly 1 full-res image in memory)
@@ -1431,7 +1438,8 @@ const Configurator = () => {
       null,
   });
 
-  const [zoomLevel, setZoomLevel] = useState(1);
+  // (zoomLevel is declared further up, beside the display-copy state that
+  // depends on it.)
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const isDraggingRef = useRef(false);
@@ -1870,11 +1878,14 @@ const Configurator = () => {
         dest.getContext('2d')?.drawImage(orig, 0, 0);
       } catch (_) {}
     });
-    // Drop the display-copy overlays (see lib/displayCopy.js). They're sized
-    // for the wall at 1× zoom; at the loupe's 7× they'd be blurry. Without
-    // them the clone shows the full-resolution image underneath — exactly
-    // what the magnifier showed before the overlays existed.
-    clone.querySelectorAll('[data-display-copy]').forEach((el) => el.remove());
+    // The wall paints display copies sized for the current zoom (see
+    // lib/displayCopy.js); at the loupe's magnification they'd be blurry.
+    // Point the clone at the full-resolution originals instead — exactly what
+    // the magnifier showed before display copies existed. (Only the clone is
+    // changed; the live wall keeps its copies.)
+    clone.querySelectorAll('img[data-full-src]').forEach((img) => {
+      img.setAttribute('src', img.getAttribute('data-full-src'));
+    });
     clone.style.cssText = [
       'position:absolute',
       'top:0',
@@ -5855,15 +5866,6 @@ const Configurator = () => {
             height: '100%',
           }}
           data-testid="preview-zoom-wrapper"
-          // "full" once zoom would UPSCALE the display copy (it's built for
-          // ~1.5× the 1×-zoom column width). index.css then hides the copies,
-          // and the full-resolution panels underneath show instead — at that
-          // zoom they're shrunk little enough to render cleanly.
-          data-panel-lod={
-            panelColPx && panelDisplayWidth && zoomLevel * panelColPx > panelDisplayWidth
-              ? "full"
-              : "display"
-          }
         >
         {!selectedProductType ? (
           /* No series picked → surface-only URL (e.g. /flat).  Show the

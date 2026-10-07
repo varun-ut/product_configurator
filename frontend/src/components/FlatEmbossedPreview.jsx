@@ -33,6 +33,7 @@ import {
 } from "react";
 import { toPng } from "html-to-image";
 import { saveImageFile } from "@/lib/downloadImageFile";
+import { makeDisplayCopy } from "@/lib/displayCopy";
 import { useRenderLog } from "@/hooks/use-render-log";
 import {
   FLAT_EMBOSSED_VMT_CONFIG,
@@ -61,11 +62,16 @@ const POST_REVEAL_HOLD_MS = 1000;
  *  end up with a single, slightly longer transition instead of two. */
 const COMMIT_GRACE_MS = 300;
 /** Longest the reveal will wait for an incoming texture's display copy (see
- *  `displayPending`). On a normal machine the copy is ready long before the
- *  loader would drop, so this never bites; it only exists so a slow device or
- *  a failed build can't leave the loader up — past it, the full-res image is
- *  revealed and the copy slots in over it when ready. */
-const DISPLAY_COPY_MAX_WAIT_MS = 1500;
+ *  `displayPending`). Building one takes ~0.4 s on a desktop, inside the
+ *  loader's own minimum time, so normally this never bites; it exists so a
+ *  slow device or a failed build can't leave the loader up — past it, the
+ *  full-res image is revealed and the copy replaces it when ready. */
+const DISPLAY_COPY_MAX_WAIT_MS = 2500;
+/** Downloads render at this multiple of the on-screen size (see downloadImage).
+ *  Capture copies are sized from it, so the two must stay the same number. */
+const EXPORT_PIXEL_RATIO = 4;
+/** Longest a download waits for one image in its offscreen clone to load. */
+const CAPTURE_IMG_TIMEOUT_MS = 10000;
 
 /**
  * Kicks off background loading for an array of image URLs so they are
@@ -112,12 +118,14 @@ const FlatEmbossedPreview = forwardRef(
       /** solid CSS color to fill panel columns when no texture is loaded (e.g. ombre base color) */
       panelFallbackColor = null,
       /**
-       * Display-resolution copies (see lib/displayCopy.js). Painted as an
-       * overlay ON TOP of the full-resolution `textureUrl` / `embossUrl`
-       * images, which stay in place underneath for zoom, the magnifier and
-       * downloads. Optional — null means no overlay, i.e. exactly the old
-       * behaviour. These never take part in transition / loader decisions:
-       * only `textureUrl` and `embossUrl` do.
+       * Display-resolution copies (see lib/displayCopy.js), sized for the
+       * current zoom. When present, this is what the wall's <img> elements
+       * actually PAINT, instead of the full-resolution `textureUrl` /
+       * `embossUrl`. The full-res URL is still carried on each image as
+       * `data-full-src`, for the magnifier and the download, which need other
+       * resolutions. Optional — null paints the full-res image, i.e. exactly
+       * the old behaviour. These never take part in transition / loader
+       * decisions: only `textureUrl` and `embossUrl` do.
        */
       textureDisplayUrl = null,
       embossDisplayUrl = null,
@@ -134,7 +142,7 @@ const FlatEmbossedPreview = forwardRef(
     // ── Full-res → display-copy lookup ─────────────────────────────────────
     // Keyed by the full-resolution URL rather than read straight off the
     // props, because during a transition the FROZEN columns still show the
-    // previous texture. Keeping its copy here means a frozen overlay's `src`
+    // previous texture. Keeping its copy here means a frozen image's `src`
     // never changes mid-transition, so it never reloads a revoked blob URL.
     // Pruned below to the textures actually on screen or incoming.
     const displaySrcRef = useRef(new Map());
@@ -155,6 +163,9 @@ const FlatEmbossedPreview = forwardRef(
     // it, so only a genuinely separate emboss image (Ombre) records its own.
     if (embossUrl && embossUrl !== textureUrl) rememberDisplaySrc(embossUrl, embossDisplayUrl);
     const displaySrcFor = (fullUrl) => (fullUrl ? displaySrcRef.current.get(fullUrl) ?? null : null);
+    /** What an image showing `fullUrl` should actually paint: its display
+     *  copy when there is one, else the full-res image itself. */
+    const screenSrc = (fullUrl) => displaySrcFor(fullUrl) ?? fullUrl;
 
     // ── Stable key for the incoming textureUrls array (avoids array-as-dep issues) ──
     // textureUrls can be null (single designs) or string[] (continuous designs).
@@ -380,32 +391,97 @@ const FlatEmbossedPreview = forwardRef(
     }, [nonBlobReady, displayPending]);
 
     // ── Download: capture the wall-canvas DOM node to a PNG ──────────────
-    // Strategy: just before serializing, swap every cross-origin <img> src
-    // with a freshly-fetched blob URL.  Reasons:
-    //   1. html-to-image's canvas serializer is sensitive to <picture>
-    //      element source-picking + browser cache state.  Even when CORS
-    //      is correctly returned by the CDN, the canvas can end up
-    //      tainted (broken image in the output PNG) because of stale-
-    //      cache hits with mismatched CORS approval.
-    //   2. Blob URLs are same-origin to the page, so canvas serialization
-    //      is foolproof — no CORS check at all.
-    // After toPng resolves, every original src is restored so the live
-    // page keeps using the CDN URL (and the browser's cache).
+    // The capture runs on an OFFSCREEN CLONE of the wall, never on the live
+    // preview, so nothing on screen can flash or change while it runs (the
+    // capture is async and takes seconds). The clone differs from the live
+    // wall in two ways:
+    //   1. Panel / emboss images are swapped for CAPTURE copies — properly
+    //      downsampled (lib/displayCopy.js) to exactly the width each image
+    //      occupies in the EXPORT_PIXEL_RATIO× PNG. Rendering the 27 MP
+    //      original there is a ~3:1 shrink the browser does with whatever
+    //      filter it picks, and on fine fabrics that came out as plaid moiré
+    //      in downloads. The on-screen display copy is no use either: it is
+    //      sized for the screen and would be upscaled ~2.7×.
+    //   2. Cross-origin images are swapped for blob URLs. html-to-image's
+    //      canvas serializer is sensitive to <picture> source-picking and
+    //      cache state; even with correct CORS from the CDN the canvas could
+    //      end up tainted by stale-cache hits. Blob URLs are same-origin, so
+    //      serialization is foolproof.
+    // Both swaps used to be made on the live DOM and restored afterwards;
+    // on a clone there is nothing to restore.
     useImperativeHandle(ref, () => ({
       downloadImage: async (overrideFilename, addHeader, opts = {}) => {
-        const node = wallCanvasRef.current;
-        if (!node) return;
-        const restorers = [];
+        const live = wallCanvasRef.current;
+        if (!live) return;
+        const cleanups = [];
+        let host = null;
         try {
-          // 0) Wall-only export — locate the room/furniture layer so it can be
+          // 0a) Capture copies of every full-res image the wall shows, at the
+          //     width a column occupies in the export. makeDisplayCopy returns
+          //     null when the source is already small enough to need none
+          //     (e.g. an 862 px emboss composite) — the original is used then.
+          const columnCount =
+            live.querySelectorAll('[data-testid^="panel-column-"]').length || 1;
+          const captureWidth = Math.ceil(
+            (live.offsetWidth / columnCount) * EXPORT_PIXEL_RATIO,
+          );
+          const fullSrcs = [
+            ...new Set(
+              Array.from(live.querySelectorAll("[data-full-src], [data-full-bg]"))
+                .map((el) => el.getAttribute("data-full-src") || el.getAttribute("data-full-bg"))
+                .filter(Boolean),
+            ),
+          ];
+          const captureSrc = new Map();
+          await Promise.all(
+            fullSrcs.map(async (full) => {
+              try {
+                const res = await fetch(full);
+                if (!res.ok) return;
+                const copy = await makeDisplayCopy(await res.blob(), captureWidth);
+                if (copy) {
+                  captureSrc.set(full, copy.url);
+                  cleanups.push(() => URL.revokeObjectURL(copy.url));
+                }
+              } catch (err) {
+                console.warn("[FlatEmbossedPreview] capture copy failed, using original:", err);
+              }
+            }),
+          );
+          const captureFor = (full) => captureSrc.get(full) || full;
+
+          // 0b) The offscreen clone, with the live wall's exact geometry. The
+          //     room photo is the only in-flow element — it sizes the wall —
+          //     so pin it (and the wall) to their live pixel sizes; every other
+          //     layer is absolute inset:0 and follows.
+          const node = live.cloneNode(true);
+          node.style.width = `${live.offsetWidth}px`;
+          node.style.height = `${live.offsetHeight}px`;
+          const furnitureSel = 'img[alt="Room interior with furniture"]';
+          const liveFurniture = live.querySelector(furnitureSel);
+          const cloneFurniture = node.querySelector(furnitureSel);
+          if (liveFurniture && cloneFurniture) {
+            cloneFurniture.style.width = `${liveFurniture.offsetWidth}px`;
+            cloneFurniture.style.height = `${liveFurniture.offsetHeight}px`;
+          }
+          node.querySelectorAll("img[data-full-src]").forEach((img) => {
+            img.setAttribute("src", captureFor(img.getAttribute("data-full-src")));
+          });
+          node.querySelectorAll("[data-full-bg]").forEach((el) => {
+            el.style.backgroundImage = `url(${captureFor(el.getAttribute("data-full-bg"))})`;
+          });
+          host = document.createElement("div");
+          host.setAttribute("aria-hidden", "true");
+          host.style.cssText = "position:fixed;left:-100000px;top:0;pointer-events:none;";
+          host.appendChild(node);
+          document.body.appendChild(host);
+
+          // 0c) Wall-only export — locate the room/furniture layer so it can be
           //    excluded from the capture.
-          //    We deliberately do NOT hide it on the live DOM.  The capture
-          //    below is asynchronous (blob prefetch + a 4x serialize), so any
-          //    visible mutation flashes the real preview at the user for the
-          //    whole of that window.  Instead the layer is dropped from
-          //    html-to-image's INTERNAL clone via the `filter` option, which
-          //    leaves the on-screen preview completely untouched.
-          //    Removing it is safe even though the furniture <img> is THE
+          //    It is dropped via html-to-image's `filter` option rather than
+          //    removed from our clone: the furniture <img> sizes the wall, so
+          //    the clone still needs it for layout.
+          //    Removing it from the export is safe even though the furniture <img> is THE
           //    SIZE-DEFINING element (see the layer stack at the top of this
           //    file): html-to-image copies the full computed `cssText` onto
           //    the clone, so the wall-canvas keeps an explicit width/height
@@ -417,10 +493,11 @@ const FlatEmbossedPreview = forwardRef(
               })()
             : null;
 
-          // 0b) Wall-only: a panel elevation shows ONE row, but the preview
+          // 0d) Wall-only: a panel elevation shows ONE row, but the preview
           //     stacks `panelRowCount` of them so the pattern fills the wall
-          //     behind the furniture.  Drop rows 1..n from the clone (again,
-          //     never from the live DOM) so exactly row 0 survives.
+          //     behind the furniture.  Drop rows 1..n from the export (via the
+          //     filter, so the clone's layout is undisturbed) so exactly row 0
+          //     survives.
           //     Every stacked layer tags its rows with data-row-index — the
           //     panel layer AND the emboss layer, which is a SEPARATE stack of
           //     images.  Cropping to the panel row height alone was leaving a
@@ -435,21 +512,17 @@ const FlatEmbossedPreview = forwardRef(
               )
             : new Set();
 
-          // 1) Pre-fetch every cross-origin <img> as a blob, set src to the
-          //    blob URL, and remember how to restore.  Also strip <source>
-          //    siblings inside <picture> so the browser doesn't re-elect a
-          //    cross-origin URL after we change src.
+          // 1) Swap every cross-origin <img> in the clone for a blob URL (see
+          //    the note above this function). Also strip <source> siblings
+          //    inside <picture> so the browser doesn't re-elect a cross-origin
+          //    URL after we change src.
           // In wall-only mode the furniture is filtered out of the capture, so
           // prefetching its (large) bitmap would be pure added latency.
           // Rows excluded from the clone are never serialized, so prefetching
           // their bitmaps would be pure wasted latency.
           const imgs = Array.from(node.querySelectorAll("img")).filter(
             (img) =>
-              (!furnitureEl || !furnitureEl.contains(img)) &&
-              !extraRows.has(img) &&
-              // Display copies are left out of the capture (see the filter
-              // below), so there's nothing to prefetch for them.
-              !img.closest("[data-display-copy]"),
+              (!furnitureEl || !furnitureEl.contains(img)) && !extraRows.has(img),
           );
           await Promise.all(
             imgs.map(async (img) => {
@@ -458,46 +531,37 @@ const FlatEmbossedPreview = forwardRef(
               try {
                 const res = await fetch(url, { mode: "cors", credentials: "omit" });
                 if (!res.ok) return;
-                const blob = await res.blob();
-                const blobUrl = URL.createObjectURL(blob);
-
-                const originalSrc = img.getAttribute("src");
+                const blobUrl = URL.createObjectURL(await res.blob());
+                cleanups.push(() => URL.revokeObjectURL(blobUrl));
                 const picture =
                   img.parentElement && img.parentElement.tagName === "PICTURE"
                     ? img.parentElement
                     : null;
-                const sourceBackups = [];
-                if (picture) {
-                  picture.querySelectorAll("source").forEach((s) => {
-                    sourceBackups.push({ el: s, srcset: s.getAttribute("srcset") });
-                    s.removeAttribute("srcset");
-                  });
-                }
+                picture?.querySelectorAll("source").forEach((s) => s.removeAttribute("srcset"));
                 img.setAttribute("src", blobUrl);
-                // Wait for the blob src to be decoded so toPng captures it.
-                await new Promise((resolve) => {
-                  if (img.complete && img.naturalWidth > 0) return resolve();
-                  const done = () => {
-                    img.removeEventListener("load", done);
-                    img.removeEventListener("error", done);
-                    resolve();
-                  };
-                  img.addEventListener("load", done);
-                  img.addEventListener("error", done);
-                });
-
-                restorers.push(() => {
-                  if (originalSrc) img.setAttribute("src", originalSrc);
-                  else img.removeAttribute("src");
-                  sourceBackups.forEach(({ el, srcset }) => {
-                    if (srcset) el.setAttribute("srcset", srcset);
-                  });
-                  URL.revokeObjectURL(blobUrl);
-                });
               } catch (err) {
                 console.warn("[FlatEmbossedPreview] pre-fetch failed:", url, err);
               }
             }),
+          );
+
+          // 1b) Wait for every image in the clone to load. html-to-image copies
+          //     each element's COMPUTED size into the export, and an image that
+          //     hasn't loaded yet computes as 0 px tall (height:auto) — it would
+          //     simply be missing from the PNG. Waits on `load`, not decode():
+          //     load is all layout needs, and decode() can stall indefinitely
+          //     in a hidden tab.
+          await Promise.all(
+            Array.from(node.querySelectorAll("img")).map(
+              (img) =>
+                new Promise((resolve) => {
+                  if (img.complete && img.naturalWidth > 0) return resolve();
+                  const t = setTimeout(resolve, CAPTURE_IMG_TIMEOUT_MS);
+                  const done = () => { clearTimeout(t); resolve(); };
+                  img.addEventListener("load", done, { once: true });
+                  img.addEventListener("error", done, { once: true });
+                }),
+            ),
           );
 
           // 2) Serialize. `cacheBust:false` (the default) is required —
@@ -509,27 +573,20 @@ const FlatEmbossedPreview = forwardRef(
           //    yields a 4800x3200 PNG, suitable for large prints).  Stay
           //    below 5 to avoid hitting Safari's ~8192² canvas ceiling and
           //    to keep memory in check on lower-end mobile devices.
-          // Display copies never go in the export. They exist to stop the
-          // browser aliasing a 10× shrink on screen, but the export renders
-          // at 4×, where the full-res image underneath is the right source —
-          // the copy would just be upscaled and soften the download.
-          const isDisplayCopy = (n) =>
-            n.nodeType === 1 && n.hasAttribute("data-display-copy");
           let dataUrl = await toPng(node, {
-            pixelRatio: 4,
+            pixelRatio: EXPORT_PIXEL_RATIO,
             skipFonts: true,
-            // Everything here is dropped from html-to-image's INTERNAL clone,
-            // never from the live DOM (see note above). `filter` is not
-            // invoked for the root node, so the wall-canvas itself is always
-            // kept; excluding a node also excludes its children, so
-            // `contains` covers the <img> inside the <picture>.
-            //   - display-copy overlays: always
-            //   - furniture: wall-only exports
-            //   - stacked rows 1..n: wall-only exports
-            filter: (n) =>
-              !isDisplayCopy(n) &&
-              !(furnitureEl && furnitureEl.contains(n)) &&
-              !extraRows.has(n),
+            // Wall-only: drop the furniture and stacked rows 1..n from the
+            // export. `filter` is not invoked for the root node, so the
+            // wall-canvas itself is always kept; excluding a node also
+            // excludes its children, so `contains` covers the <img> inside
+            // the <picture>.
+            ...(furnitureEl || extraRows.size
+              ? {
+                  filter: (n) =>
+                    !(furnitureEl && furnitureEl.contains(n)) && !extraRows.has(n),
+                }
+              : {}),
           });
 
           // 2b) Wall-only: trim the stacked rows down to one.
@@ -538,7 +595,7 @@ const FlatEmbossedPreview = forwardRef(
           //     cutout (see the panelRowCount comment further down). With the
           //     room hidden every stacked row becomes visible, which isn't
           //     what a panel elevation should show.
-          //     Row height is MEASURED from the live first panel <img> rather
+          //     Row height is MEASURED from the clone's first panel <img> rather
           //     than assumed to be boxHeight/panelRowCount: rows are natural
           //     height (width:100%; height:auto; flexShrink:0) and overflow
           //     the container rather than dividing it evenly, so the even-split
@@ -594,9 +651,10 @@ const FlatEmbossedPreview = forwardRef(
         } catch (err) {
           console.error("[FlatEmbossedPreview] download failed:", err);
         } finally {
-          // 3) Restore the original srcs / sources so the live page keeps
-          //    using the CDN URL.  Runs even if toPng threw.
-          restorers.forEach((fn) => { try { fn(); } catch {} });
+          // 3) Drop the clone and release every blob URL made for it. Runs
+          //    even if toPng threw. The live wall was never touched.
+          host?.remove();
+          cleanups.forEach((fn) => { try { fn(); } catch {} });
         }
       },
     }));
@@ -751,6 +809,13 @@ const FlatEmbossedPreview = forwardRef(
              */}
             <div
               className="flat-embossed-panel-container"
+              // Full-res source of the seam-filling background below, so the
+              // download can swap in its own capture copy (see downloadImage).
+              data-full-bg={
+                displayedTextureUrls?.length === 1 && !panelFallbackColor
+                  ? displayedTextureUrls[0]
+                  : undefined
+              }
               style={{
                 position: "absolute",
                 inset: 0,
@@ -762,7 +827,9 @@ const FlatEmbossedPreview = forwardRef(
                 // Only applies when all columns share one texture (single-url designs).
                 ...(displayedTextureUrls?.length === 1 && !panelFallbackColor
                   ? {
-                      backgroundImage: `url(${displayedTextureUrls[0]})`,
+                      // The same image the columns paint (display copy when
+                      // there is one) — a full-res fill would alias in the seams.
+                      backgroundImage: `url(${screenSrc(displayedTextureUrls[0])})`,
                       backgroundSize: `calc(100% / ${displayedTextureUrls.length > 1 ? displayedTextureUrls.length : cfg.repeat}) auto`,
                       backgroundRepeat: "repeat",
                       backgroundPosition: "top left",
@@ -809,56 +876,21 @@ const FlatEmbossedPreview = forwardRef(
                             {Array.from({ length: panelRowCount }).map((__, rowIndex) => (
                               <img
                                 key={`${colUrl}-${rowIndex}-${isCenter && flipCenter ? "flipped" : "normal"}`}
-                                src={colUrl}
+                                // Paints the display copy sized for the current
+                                // zoom (lib/displayCopy.js) when there is one. Keyed
+                                // on the full-res URL, so a rebuilt copy is a plain
+                                // `src` change on the same element, which the
+                                // browser swaps atomically.
+                                src={screenSrc(colUrl)}
+                                // The full-res original, for the magnifier and the
+                                // download, which each need their own resolution.
+                                data-full-src={colUrl}
                                 alt=""
                                 draggable={false}
                                 // Marks this <img> as one repeated row of the stack.
                                 // The wall-only export keeps row 0 and drops the rest
                                 // from html-to-image's clone — see downloadImage.
                                 data-row-index={rowIndex}
-                                style={{
-                                  width: "100%",
-                                  height: "auto",
-                                  display: "block",
-                                  flexShrink: 0,
-                                  pointerEvents: "none",
-                                  userSelect: "none",
-                                  transform: isCenter && flipCenter ? "scaleX(-1)" : undefined,
-                                  transformOrigin: "center",
-                                }}
-                              />
-                            ))}
-                          </div>
-                        )}
-                        {/* Display copy — the same texture, properly downsampled,
-                            painted over the full-res stack above. This is what
-                            the user actually sees at normal zoom; see
-                            lib/displayCopy.js for why. Deliberately carries no
-                            data-row-index: the download leaves the whole overlay
-                            out and captures the full-res stack, the magnifier
-                            strips it from its clone, and Configurator hides it
-                            (via data-panel-lod) once zoom would upscale it. */}
-                        {colUrl && displaySrcFor(colUrl) && (
-                          <div
-                            data-display-copy=""
-                            aria-hidden="true"
-                            style={{
-                              position: "absolute",
-                              inset: 0,
-                              display: "flex",
-                              flexDirection: "column",
-                              pointerEvents: "none",
-                            }}
-                          >
-                            {Array.from({ length: panelRowCount }).map((__, rowIndex) => (
-                              <img
-                                // Not keyed on the URL: when the copy is rebuilt
-                                // at a new width the same element just swaps
-                                // `src`, which the browser does atomically.
-                                key={`copy-${rowIndex}-${isCenter && flipCenter ? "flipped" : "normal"}`}
-                                src={displaySrcFor(colUrl)}
-                                alt=""
-                                draggable={false}
                                 style={{
                                   width: "100%",
                                   height: "auto",
@@ -959,7 +991,13 @@ const FlatEmbossedPreview = forwardRef(
                       }}
                     >
                       <img
-                        src={displayedEmbossUrl}
+                        // Display copy when there is one — same treatment as
+                        // the panel layer. Painting the copy IN PLACE of the
+                        // original (not layered over it) matters here: emboss
+                        // images are semi-transparent, so anything underneath
+                        // would show through.
+                        src={screenSrc(displayedEmbossUrl)}
+                        data-full-src={displayedEmbossUrl}
                         alt=""
                         draggable={false}
                         // Row 0 of the emboss stack — the row the wall-only
@@ -979,7 +1017,8 @@ const FlatEmbossedPreview = forwardRef(
                       {Array.from({ length: panelRowCount - 1 }).map((_, rowIndex) => (
                         <img
                           key={`emboss-${i}-${rowIndex}`}
-                          src={displayedEmbossUrl}
+                          src={screenSrc(displayedEmbossUrl)}
+                          data-full-src={displayedEmbossUrl}
                           alt=""
                           draggable={false}
                           // +1 because this map renders rows 1..n-1.
@@ -995,43 +1034,6 @@ const FlatEmbossedPreview = forwardRef(
                           }}
                         />
                       ))}
-                      {/* Display copy of the emboss image — same overlay
-                          treatment as the panel layer (see the comment there).
-                          For Designer Textile / Color Core with an emboss this
-                          IS the visible panel, since the emboss composite is
-                          the full panel with the emboss baked in. */}
-                      {displaySrcFor(displayedEmbossUrl) && (
-                        <div
-                          data-display-copy=""
-                          aria-hidden="true"
-                          style={{
-                            position: "absolute",
-                            inset: 0,
-                            display: "flex",
-                            flexDirection: "column",
-                            pointerEvents: "none",
-                          }}
-                        >
-                          {Array.from({ length: panelRowCount }).map((_, rowIndex) => (
-                            <img
-                              key={`emboss-copy-${i}-${rowIndex}`}
-                              src={displaySrcFor(displayedEmbossUrl)}
-                              alt=""
-                              draggable={false}
-                              style={{
-                                width: "100%",
-                                height: "auto",
-                                display: "block",
-                                flexShrink: 0,
-                                pointerEvents: "none",
-                                userSelect: "none",
-                                transform: isCenter && flipCenter ? "scaleX(-1)" : undefined,
-                                transformOrigin: "center",
-                              }}
-                            />
-                          ))}
-                        </div>
-                      )}
                     </div>
                   );
                 })}
